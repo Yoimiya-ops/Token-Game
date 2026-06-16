@@ -13,3 +13,4 @@ apps/server/dist/
 apps/web/dist/
 apps/server/data/ledger.json
 .superpowers/
+work/

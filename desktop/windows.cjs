@@ -9,7 +9,7 @@ let gameWindow;
 async function loadGameWindow(window, app) {
   const builtIndex = path.join(app.getAppPath(), 'apps', 'web', 'dist', 'index.html');
   if (existsSync(builtIndex)) {
-    await window.loadFile(builtIndex);
+    await window.loadURL('http://127.0.0.1:3001/');
     return;
   }
 
