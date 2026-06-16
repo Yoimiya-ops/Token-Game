@@ -1,5 +1,6 @@
 const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const path = require('node:path');
+const { defaultPetAssetId, normalizePetAssetId } = require('./pet-assets.cjs');
 
 const STATE_FILE = 'pet-state.json';
 
@@ -10,7 +11,8 @@ const defaultPetState = {
     width: 180,
     height: 180
   },
-  alwaysOnTop: true
+  alwaysOnTop: true,
+  activePetId: defaultPetAssetId
 };
 
 function isFiniteNumber(value) {
@@ -30,7 +32,8 @@ function normalizePetState(value) {
     alwaysOnTop:
       typeof value?.alwaysOnTop === 'boolean'
         ? value.alwaysOnTop
-        : defaultPetState.alwaysOnTop
+        : defaultPetState.alwaysOnTop,
+    activePetId: normalizePetAssetId(value?.activePetId)
   };
 }
 

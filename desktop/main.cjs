@@ -3,14 +3,15 @@ const { startEmbeddedServer, stopEmbeddedServer } = require('./server.cjs');
 const {
   createGameWindow,
   createPetWindow,
+  getActivePetAsset,
   hidePetWindow,
   registerPetIpc,
   restorePetWindow,
+  setActivePetAsset,
   togglePetAlwaysOnTop
 } = require('./windows.cjs');
 const { createPetContextMenu, createTray } = require('./tray.cjs');
-
-let petContextMenu;
+const { listPetAssets } = require('./pet-assets.cjs');
 
 async function openGame() {
   await createGameWindow(app);
@@ -18,7 +19,6 @@ async function openGame() {
 
 async function boot() {
   await startEmbeddedServer(app);
-  await createPetWindow(app);
 
   const actions = {
     restorePet: () => restorePetWindow(),
@@ -26,12 +26,15 @@ async function boot() {
       void openGame();
     },
     toggleAlwaysOnTop: () => togglePetAlwaysOnTop(app),
-    hidePet: () => hidePetWindow()
+    hidePet: () => hidePetWindow(),
+    listPetAssets,
+    getActivePetAsset: () => getActivePetAsset(app),
+    setActivePetAsset: (id) => setActivePetAsset(app, id)
   };
 
-  petContextMenu = createPetContextMenu(app, actions);
   createTray(app, actions);
-  registerPetIpc(app, () => petContextMenu.popup());
+  registerPetIpc(app, () => createPetContextMenu(app, actions).popup());
+  await createPetWindow(app);
 }
 
 app.whenReady().then(async () => {

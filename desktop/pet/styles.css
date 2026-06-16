@@ -25,6 +25,7 @@ body {
 }
 
 .cat,
+.pet-image,
 .bubble {
   -webkit-app-region: no-drag;
 }
@@ -39,8 +40,28 @@ body {
   transform-origin: 50% 90%;
 }
 
-.cat.is-happy {
+.cat.is-happy,
+.pet-image.is-happy {
   animation: bounce 420ms ease;
+}
+
+.pet-image {
+  display: none;
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.28));
+  transform-origin: 50% 90%;
+  pointer-events: auto;
+}
+
+.pet[data-pet-kind='image'] .cat {
+  display: none;
+}
+
+.pet[data-pet-kind='image'] .pet-image {
+  display: block;
 }
 
 .ear {

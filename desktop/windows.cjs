@@ -1,6 +1,7 @@
 const { BrowserWindow, ipcMain } = require('electron');
 const { existsSync } = require('node:fs');
 const path = require('node:path');
+const { getPetAssetById } = require('./pet-assets.cjs');
 const { loadPetState, savePetState } = require('./pet-state.cjs');
 
 let petWindow;
@@ -93,10 +94,16 @@ function persistPetWindowState(app) {
     return;
   }
 
+  const state = loadPetState(app.getPath('userData'));
   savePetState(app.getPath('userData'), {
     bounds: petWindow.getBounds(),
-    alwaysOnTop: petWindow.isAlwaysOnTop()
+    alwaysOnTop: petWindow.isAlwaysOnTop(),
+    activePetId: state.activePetId
   });
+}
+
+function getActivePetAsset(app) {
+  return getPetAssetById(loadPetState(app.getPath('userData')).activePetId);
 }
 
 function restorePetWindow() {
@@ -117,7 +124,22 @@ function togglePetAlwaysOnTop(app) {
   return nextValue;
 }
 
+function setActivePetAsset(app, activePetId) {
+  const state = loadPetState(app.getPath('userData'));
+  const asset = getPetAssetById(activePetId);
+  savePetState(app.getPath('userData'), {
+    ...state,
+    activePetId: asset.id
+  });
+
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.webContents.send('pet:asset-changed', asset);
+  }
+}
+
 function registerPetIpc(app, showPetContextMenu) {
+  ipcMain.handle('pet:get-asset', () => getActivePetAsset(app));
+
   ipcMain.on('pet:open-game', () => {
     void createGameWindow(app);
   });
@@ -140,8 +162,10 @@ module.exports = {
   createPetWindow,
   hidePetWindow,
   loadGameWindow,
+  getActivePetAsset,
   persistPetWindowState,
   registerPetIpc,
   restorePetWindow,
+  setActivePetAsset,
   togglePetAlwaysOnTop
 };
