@@ -1,0 +1,31 @@
+{
+  "name": "token-game",
+  "main": "desktop/main.cjs",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,magenta \"npm run dev --workspace @token-game/server\" \"npm run dev --workspace @token-game/web\"",
+    "dev:web": "npm run dev --workspace @token-game/web",
+    "dev:server": "npm run dev --workspace @token-game/server",
+    "desktop": "electron .",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:init": "npm run db:init --workspace @token-game/server",
+    "dist:win": "npm run build && node scripts/package-win.mjs"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@electron/packager": "^18.3.6",
+    "concurrently": "^9.2.1",
+    "electron": "^37.2.6"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron"
+    ]
+  }
+}

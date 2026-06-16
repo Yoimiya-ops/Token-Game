@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model TokenEvent {
+  id         String   @id
+  source     String
+  model      String
+  kind       String
+  tokenCount Int
+  foodGained Int
+  occurredAt DateTime
+  metadata   String?
+  createdAt  DateTime @default(now())
+}
+
+model PlayerState {
+  id         Int      @id @default(1)
+  kittenName String
+  food       Int      @default(0)
+  totalTokens Int     @default(0)
+  lastFedAt  DateTime?
+  updatedAt  DateTime @updatedAt
+}

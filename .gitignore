@@ -1,0 +1,14 @@
+﻿node_modules
+.dist
+coverage
+playwright-report
+test-results
+.vite
+*.tsbuildinfo
+.env
+.env.*
+prisma/dev.db
+outputs/
+apps/server/dist/
+apps/web/dist/
+apps/server/data/ledger.json
