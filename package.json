@@ -12,6 +12,7 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:desktop": "node --test desktop/*.test.cjs",
+    "test:scripts": "node --test scripts/*.test.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:init": "npm run db:init --workspace @token-game/server",
     "assets:pets": "node scripts/process-pet-assets.mjs",
@@ -25,6 +26,7 @@
   ],
   "devDependencies": {
     "@electron/packager": "^18.3.6",
+    "@imgly/background-removal-node": "^1.4.5",
     "concurrently": "^9.2.1",
     "electron": "^37.2.6",
     "sharp": "^0.35.1"

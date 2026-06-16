@@ -1,10 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
 const cwd = process.cwd();
+const currentFile = fileURLToPath(import.meta.url);
 const sourceDir = path.resolve(cwd, 'desktop', 'pet', 'assets', 'source');
 const outputDir = path.resolve(cwd, 'desktop', 'pet', 'assets', 'processed');
+const scriptPath = path.resolve(cwd, 'scripts', 'remove_pet_background.py');
 const petSources = [
   { id: 'red-swords', source: 'red-swords.png' },
   { id: 'pink-sword', source: 'pink-sword.webp' }
@@ -12,6 +16,18 @@ const petSources = [
 
 const transparentThreshold = 58;
 const softThreshold = 110;
+
+export function buildPetProcessingCommands(rootDir = process.cwd()) {
+  const rootSourceDir = path.resolve(rootDir, 'desktop', 'pet', 'assets', 'source');
+  const rootOutputDir = path.resolve(rootDir, 'desktop', 'pet', 'assets', 'processed');
+  const rootScriptPath = path.resolve(rootDir, 'scripts', 'remove_pet_background.py');
+
+  return petSources.map((asset) => ({
+    command: rootScriptPath,
+    input: path.join(rootSourceDir, asset.source),
+    output: path.join(rootOutputDir, `${asset.id}.png`)
+  }));
+}
 
 function colorDistance(a, b) {
   const red = a[0] - b[0];
@@ -117,6 +133,17 @@ async function processAsset(asset) {
   const inputPath = path.join(sourceDir, asset.source);
   const outputPath = path.join(outputDir, `${asset.id}.png`);
 
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+    execFileSync('python3', [scriptPath, '--input', inputPath, '--output', outputPath], {
+      stdio: 'inherit'
+    });
+    console.log(`Processed ${inputPath} -> ${outputPath}`);
+    return;
+  } catch (error) {
+    console.warn(`GrabCut processing failed for ${inputPath}; falling back to color matte.`);
+  }
+
   const image = sharp(inputPath).ensureAlpha();
   const metadata = await image.metadata();
   const width = metadata.width;
@@ -135,6 +162,8 @@ async function processAsset(asset) {
   console.log(`Processed ${inputPath} -> ${outputPath}`);
 }
 
-for (const asset of petSources) {
-  await processAsset(asset);
+if (path.resolve(process.argv[1] ?? '') === currentFile) {
+  for (const asset of petSources) {
+    await processAsset(asset);
+  }
 }

@@ -37,6 +37,10 @@ type ServerOptions = {
   tickIntervalMs?: number;
 };
 
+type GameAppOptions = {
+  tickIntervalMs?: number;
+};
+
 const DEFAULT_TICK_INTERVAL_MS = 5000;
 
 export function resolveWebStaticRoot(cwd = process.cwd()) {
@@ -165,16 +169,15 @@ async function readGameState(): Promise<GameStateResponse> {
   };
 }
 
-export async function startGameServer(options: ServerOptions = {}) {
-  const port = options.port ?? 3001;
-  const host = options.host ?? '127.0.0.1';
+export async function createGameApp(options: GameAppOptions = {}) {
   const tickIntervalMs = options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS;
   const app = Fastify({ logger: true });
   const staticRoot = resolveWebStaticRoot();
 
   await app.register(cors, { origin: true });
   await app.register(fastifyStatic, {
-    root: staticRoot
+    root: staticRoot,
+    index: false
   });
 
   app.get('/health', async () => ({ ok: true }));
@@ -216,6 +219,14 @@ export async function startGameServer(options: ServerOptions = {}) {
   app.addHook('onClose', async () => {
     clearInterval(interval);
   });
+
+  return app;
+}
+
+export async function startGameServer(options: ServerOptions = {}) {
+  const port = options.port ?? 3001;
+  const host = options.host ?? '127.0.0.1';
+  const app = await createGameApp(options);
 
   await app.listen({ port, host });
   return app;
