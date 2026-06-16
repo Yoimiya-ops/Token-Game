@@ -1,22 +1,60 @@
-const { app } = require('electron');
+const { app, dialog } = require('electron');
 const { startEmbeddedServer, stopEmbeddedServer } = require('./server.cjs');
-const { createGameWindow } = require('./windows.cjs');
+const {
+  createGameWindow,
+  createPetWindow,
+  hidePetWindow,
+  registerPetIpc,
+  restorePetWindow,
+  togglePetAlwaysOnTop
+} = require('./windows.cjs');
+const { createPetContextMenu, createTray } = require('./tray.cjs');
+
+let petContextMenu;
+
+async function openGame() {
+  await createGameWindow(app);
+}
+
+async function boot() {
+  await startEmbeddedServer(app);
+  await createPetWindow(app);
+
+  const actions = {
+    restorePet: () => restorePetWindow(),
+    openGame: () => {
+      void openGame();
+    },
+    toggleAlwaysOnTop: () => togglePetAlwaysOnTop(app),
+    hidePet: () => hidePetWindow()
+  };
+
+  petContextMenu = createPetContextMenu(app, actions);
+  createTray(app, actions);
+  registerPetIpc(app, () => petContextMenu.popup());
+}
 
 app.whenReady().then(async () => {
-  await startEmbeddedServer(app);
-  await createGameWindow(app);
+  try {
+    await boot();
+  } catch (error) {
+    dialog.showErrorBox('Token Game 启动失败', error instanceof Error ? error.message : String(error));
+    app.quit();
+  }
 
-  app.on('activate', async () => {
-    if (process.platform === 'darwin') {
-      await createGameWindow(app);
-    }
+  app.on('activate', () => {
+    restorePetWindow();
   });
 });
 
-app.on('window-all-closed', async () => {
-  await stopEmbeddedServer();
+app.on('before-quit', () => {
+  app.isQuitting = true;
+});
 
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+app.on('window-all-closed', (event) => {
+  event.preventDefault();
+});
+
+app.on('will-quit', async () => {
+  await stopEmbeddedServer();
 });
