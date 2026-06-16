@@ -9,7 +9,8 @@ async function startEmbeddedServer(app) {
   const serverModule = require(serverEntry);
   gameServer = await serverModule.startGameServer({
     port: 3001,
-    host: '127.0.0.1'
+    host: '127.0.0.1',
+    staticRoot: path.join(app.getAppPath(), 'apps', 'web', 'dist')
   });
 
   return gameServer;

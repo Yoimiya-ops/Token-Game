@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { test } from 'node:test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,4 +32,24 @@ test('serves the built web app from the root route', async () => {
   assert.match(response.body, /<div id="root"><\/div>/);
 
   await app.close();
+});
+
+test('serves the built web app from an explicit static root', async () => {
+  const staticRoot = mkdtempSync(path.join(tmpdir(), 'token-game-static-'));
+  mkdirSync(path.join(staticRoot, 'assets'), { recursive: true });
+  writeFileSync(path.join(staticRoot, 'index.html'), '<!doctype html><div id="explicit-root"></div>');
+  const app = await createGameApp({
+    staticRoot,
+    tickIntervalMs: 60_000
+  });
+
+  try {
+    const response = await app.inject({ method: 'GET', url: '/' });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /<div id="explicit-root"><\/div>/);
+  } finally {
+    await app.close();
+    rmSync(staticRoot, { recursive: true, force: true });
+  }
 });

@@ -26,7 +26,6 @@
   ],
   "devDependencies": {
     "@electron/packager": "^18.3.6",
-    "@imgly/background-removal-node": "^1.4.5",
     "concurrently": "^9.2.1",
     "electron": "^37.2.6",
     "sharp": "^0.35.1"

@@ -34,10 +34,12 @@ type GameStateResponse = {
 type ServerOptions = {
   port?: number;
   host?: string;
+  staticRoot?: string;
   tickIntervalMs?: number;
 };
 
 type GameAppOptions = {
+  staticRoot?: string;
   tickIntervalMs?: number;
 };
 
@@ -172,7 +174,7 @@ async function readGameState(): Promise<GameStateResponse> {
 export async function createGameApp(options: GameAppOptions = {}) {
   const tickIntervalMs = options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS;
   const app = Fastify({ logger: true });
-  const staticRoot = resolveWebStaticRoot();
+  const staticRoot = options.staticRoot ?? resolveWebStaticRoot();
 
   await app.register(cors, { origin: true });
   await app.register(fastifyStatic, {
