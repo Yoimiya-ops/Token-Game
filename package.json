@@ -11,6 +11,7 @@
     "desktop": "electron .",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:desktop": "node --test desktop/*.test.cjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:init": "npm run db:init --workspace @token-game/server",
     "dist:win": "npm run build && node scripts/package-win.mjs"
