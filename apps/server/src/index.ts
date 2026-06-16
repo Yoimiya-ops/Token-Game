@@ -1,6 +1,7 @@
 ﻿import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { tokenEventSchema, tokenEventToResourceDelta } from '@token-game/shared';
 import { appendEvent, ensureLedger, readLedger, updateLedger } from './store';
@@ -37,6 +38,27 @@ type ServerOptions = {
 };
 
 const DEFAULT_TICK_INTERVAL_MS = 5000;
+
+export function resolveWebStaticRoot(cwd = process.cwd()) {
+  let current = path.resolve(cwd);
+
+  while (true) {
+    const webRoot = path.join(current, 'apps', 'web');
+    const candidate = path.join(current, 'apps', 'web', 'dist');
+    if (existsSync(webRoot) || existsSync(path.join(candidate, 'index.html'))) {
+      return candidate;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return path.resolve(cwd, 'apps', 'web', 'dist');
+    }
+
+    current = parent;
+  }
+}
+
+export const resolveStaticRoot = resolveWebStaticRoot;
 
 function createMockEvent(sequence: number) {
   const tokenCount = 40 + ((sequence * 37) % 160);
@@ -148,7 +170,7 @@ export async function startGameServer(options: ServerOptions = {}) {
   const host = options.host ?? '127.0.0.1';
   const tickIntervalMs = options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS;
   const app = Fastify({ logger: true });
-  const staticRoot = path.resolve(process.cwd(), 'apps', 'web', 'dist');
+  const staticRoot = resolveWebStaticRoot();
 
   await app.register(cors, { origin: true });
   await app.register(fastifyStatic, {
