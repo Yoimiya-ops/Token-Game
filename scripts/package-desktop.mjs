@@ -63,6 +63,12 @@ function copyDirectory(source, destination) {
   fs.cpSync(source, destination, { recursive: true });
 }
 
+function copyMacBundle(source, destination) {
+  fs.rmSync(destination, { recursive: true, force: true });
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  execFileSync('ditto', [source, destination]);
+}
+
 function copyAppSource(destination) {
   fs.mkdirSync(destination, { recursive: true });
   for (const entry of fs.readdirSync(cwd, { withFileTypes: true })) {
@@ -93,7 +99,7 @@ function packageLocalMacApp() {
   const appPath = path.join(appDir, 'Token Game.app');
   const resourcesDir = path.join(appPath, 'Contents', 'Resources');
   const appSourceDir = path.join(resourcesDir, 'app');
-  copyDirectory(electronApp, appPath);
+  copyMacBundle(electronApp, appPath);
   copyAppSource(appSourceDir);
   const plistPath = path.join(appPath, 'Contents', 'Info.plist');
   fs.writeFileSync(
