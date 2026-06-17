@@ -6,8 +6,10 @@ test('builds python background removal commands for each source asset', () => {
   const commands = buildPetProcessingCommands('/root/project');
 
   assert.deepEqual(commands.map((command) => command.output), [
+    '/root/project/desktop/pet/assets/processed/default-cat.webp',
     '/root/project/desktop/pet/assets/processed/red-swords.png',
-    '/root/project/desktop/pet/assets/processed/pink-sword.png'
+    '/root/project/desktop/pet/assets/processed/pink-sword.png',
+    '/root/project/desktop/pet/assets/processed/pink-white-dress.webp'
   ]);
   assert.match(commands[0].command, /remove_pet_background\.py/);
 });

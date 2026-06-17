@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "packageManager": "pnpm@10.0.0",
   "scripts": {
+    "start": "npm run build && electron .",
     "dev": "concurrently -n server,web -c blue,magenta \"npm run dev --workspace @token-game/server\" \"npm run dev --workspace @token-game/web\"",
     "dev:web": "npm run dev --workspace @token-game/web",
     "dev:server": "npm run dev --workspace @token-game/server",

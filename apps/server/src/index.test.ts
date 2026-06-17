@@ -23,7 +23,11 @@ test('resolves web static root from the server workspace cwd', () => {
 });
 
 test('serves the built web app from the root route', async () => {
-  const app = await createGameApp({ tickIntervalMs: 60_000 });
+  const app = await createGameApp({
+    tickIntervalMs: 60_000,
+    tokenTrackerQueuePath: '/tmp/token-game-missing-queue.jsonl',
+    runExternalTrackerSync: false
+  });
 
   const response = await app.inject({ method: 'GET', url: '/' });
 
@@ -40,7 +44,9 @@ test('serves the built web app from an explicit static root', async () => {
   writeFileSync(path.join(staticRoot, 'index.html'), '<!doctype html><div id="explicit-root"></div>');
   const app = await createGameApp({
     staticRoot,
-    tickIntervalMs: 60_000
+    tickIntervalMs: 60_000,
+    tokenTrackerQueuePath: '/tmp/token-game-missing-queue.jsonl',
+    runExternalTrackerSync: false
   });
 
   try {

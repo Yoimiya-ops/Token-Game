@@ -5,16 +5,78 @@ const {
   createPetWindow,
   getActivePetAsset,
   hidePetWindow,
+  listAllPetAssets,
   registerPetIpc,
+  refreshActivePetAsset,
   restorePetWindow,
   setActivePetAsset,
   togglePetAlwaysOnTop
 } = require('./windows.cjs');
 const { createPetContextMenu, createTray } = require('./tray.cjs');
-const { listPetAssets } = require('./pet-assets.cjs');
+const { importCustomPetAsset } = require('./custom-pet-assets.cjs');
+const { defaultPetAssetId, deletePetAsset, renamePetAsset } = require('./pet-assets.cjs');
+const { promptForText } = require('./prompt-window.cjs');
 
 async function openGame() {
   await createGameWindow(app);
+}
+
+async function importPetAsset() {
+  const result = await dialog.showOpenDialog({
+    title: '添加图片桌宠',
+    properties: ['openFile'],
+    filters: [
+      { name: '图片桌宠', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'apng'] }
+    ]
+  });
+
+  if (result.canceled || !result.filePaths[0]) {
+    return;
+  }
+
+  const asset = importCustomPetAsset(app.getPath('userData'), result.filePaths[0]);
+  setActivePetAsset(app, asset.id);
+}
+
+async function renameActivePetAsset() {
+  const activeAsset = getActivePetAsset(app);
+  const nextName = await promptForText({
+    title: '重命名桌宠',
+    label: '桌宠名称',
+    value: activeAsset.label
+  });
+  const renamed = renamePetAsset(app.getPath('userData'), activeAsset.id, nextName);
+  if (renamed) {
+    refreshActivePetAsset(app);
+  }
+}
+
+async function deleteActivePetAsset() {
+  const activeAsset = getActivePetAsset(app);
+  if (activeAsset.id === defaultPetAssetId) {
+    return;
+  }
+
+  const result = await dialog.showMessageBox({
+    type: 'warning',
+    buttons: ['删除', '取消'],
+    defaultId: 1,
+    cancelId: 1,
+    title: '删除桌宠',
+    message: `删除“${activeAsset.label}”？`,
+    detail: activeAsset.custom
+      ? '这个操作会移除该自定义桌宠和应用内保存的图片文件。'
+      : '这个操作会从桌宠列表中隐藏该内置角色。'
+  });
+
+  if (result.response !== 0) {
+    return;
+  }
+
+  const deleted = deletePetAsset(app.getPath('userData'), activeAsset.id);
+  if (deleted) {
+    setActivePetAsset(app, defaultPetAssetId);
+  }
 }
 
 async function boot() {
@@ -27,9 +89,18 @@ async function boot() {
     },
     toggleAlwaysOnTop: () => togglePetAlwaysOnTop(app),
     hidePet: () => hidePetWindow(),
-    listPetAssets,
+    listPetAssets: () => listAllPetAssets(app),
     getActivePetAsset: () => getActivePetAsset(app),
-    setActivePetAsset: (id) => setActivePetAsset(app, id)
+    setActivePetAsset: (id) => setActivePetAsset(app, id),
+    importPetAsset: () => {
+      void importPetAsset();
+    },
+    renameActivePetAsset: () => {
+      void renameActivePetAsset();
+    },
+    deleteActivePetAsset: () => {
+      void deleteActivePetAsset();
+    }
   };
 
   createTray(app, actions);

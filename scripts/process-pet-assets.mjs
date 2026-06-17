@@ -10,8 +10,10 @@ const sourceDir = path.resolve(cwd, 'desktop', 'pet', 'assets', 'source');
 const outputDir = path.resolve(cwd, 'desktop', 'pet', 'assets', 'processed');
 const scriptPath = path.resolve(cwd, 'scripts', 'remove_pet_background.py');
 const petSources = [
-  { id: 'red-swords', source: 'red-swords.png' },
-  { id: 'pink-sword', source: 'pink-sword.webp' }
+  { id: 'default-cat', source: 'default-cat.webp', output: 'default-cat.webp' },
+  { id: 'red-swords', source: 'red-swords.png', output: 'red-swords.png' },
+  { id: 'pink-sword', source: 'pink-sword.webp', output: 'pink-sword.png' },
+  { id: 'pink-white-dress', source: 'pink-white-dress.webp', output: 'pink-white-dress.webp' }
 ];
 
 const transparentThreshold = 58;
@@ -25,7 +27,7 @@ export function buildPetProcessingCommands(rootDir = process.cwd()) {
   return petSources.map((asset) => ({
     command: rootScriptPath,
     input: path.join(rootSourceDir, asset.source),
-    output: path.join(rootOutputDir, `${asset.id}.png`)
+    output: path.join(rootOutputDir, asset.output)
   }));
 }
 
@@ -131,7 +133,7 @@ function applyAlphaMatte(data, width, height) {
 
 async function processAsset(asset) {
   const inputPath = path.join(sourceDir, asset.source);
-  const outputPath = path.join(outputDir, `${asset.id}.png`);
+  const outputPath = path.join(outputDir, asset.output);
 
   try {
     fs.mkdirSync(outputDir, { recursive: true });

@@ -80,7 +80,7 @@ export default function App() {
         <p className="eyebrow">挂机资源循环</p>
         <h1>用 Token 喂猫</h1>
         <p className="lede">
-          你的 Token 活动会转化为猫粮。消耗猫粮升级处理器，让每次自动或手动产出的收益更高，同时挂机循环会持续在后台推进。
+          TokenTracker 记录到的真实 Token 用量会转化为猫粮。消耗猫粮升级处理器，让每次同步到的新 Token 收益更高。
         </p>
       </section>
 
@@ -108,10 +108,10 @@ export default function App() {
         <article className="panel action-panel">
           <div className="panel-header">
             <span className="label">操作</span>
-            <span>挂机周期 {Math.round((state?.progression.passiveIntervalMs ?? 5000) / 1000)} 秒</span>
+            <span>同步周期 {Math.round((state?.progression.passiveIntervalMs ?? 30000) / 1000)} 秒</span>
           </div>
           <button disabled={busyAction !== null} onClick={() => void runAction('burst')} type="button">
-            {busyAction === 'burst' ? '处理中...' : '处理一轮 Token 爆发'}
+            {busyAction === 'burst' ? '同步中...' : '同步真实 Token'}
           </button>
           <button
             className="secondary"
@@ -138,7 +138,7 @@ export default function App() {
             <span>累计消耗猫粮</span>
             <strong>{state?.player.lifetimeFoodSpent ?? '--'}</strong>
           </div>
-          <p className="hint">每提升 1 级处理器，所有自动和手动的 Token 事件都会额外获得 +2 猫粮。</p>
+          <p className="hint">每提升 1 级处理器，TokenTracker 同步到的每类新增 Token 都会额外获得 +2 猫粮。</p>
         </article>
 
         <article className="panel log-panel">

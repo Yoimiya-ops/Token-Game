@@ -21,6 +21,10 @@ function isFiniteNumber(value) {
 
 function normalizePetState(value) {
   const bounds = value && typeof value === 'object' ? value.bounds : undefined;
+  const activePetId =
+    typeof value?.activePetId === 'string' && value.activePetId.startsWith('custom-')
+      ? value.activePetId
+      : normalizePetAssetId(value?.activePetId);
 
   return {
     bounds: {
@@ -33,7 +37,7 @@ function normalizePetState(value) {
       typeof value?.alwaysOnTop === 'boolean'
         ? value.alwaysOnTop
         : defaultPetState.alwaysOnTop,
-    activePetId: normalizePetAssetId(value?.activePetId)
+    activePetId
   };
 }
 

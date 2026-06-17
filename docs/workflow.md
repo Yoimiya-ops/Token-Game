@@ -1,206 +1,67 @@
-# Development Workflow
+# 开发流程
 
-## Workflow Goal
+## 分支策略
 
-Create a development loop that keeps implementation fast while preserving determinism around token ingestion,
-economy math, and progression state.
+- `main`：稳定分支。
+- `dev`：当前开发分支。
+- 功能开发优先从 `dev` 拉分支，完成后合回 `dev`。
 
-## Working Model
+## 推荐开发循环
 
-Use a documentation-first and vertical-slice-first workflow.
-The project should always keep one playable path working end to end:
-mock token input -> normalized event -> resource gain -> upgrade purchase -> persisted state -> offline resume.
+1. 从 `dev` 更新代码。
+2. 安装依赖：`corepack pnpm install`。
+3. 根据任务改动对应层：shared schema、server API、web UI、desktop 桌宠逻辑。
+4. 补充或更新测试。
+5. 运行验证命令。
+6. 更新文档。
+7. 提交并 push。
 
-## Branching Strategy
+## 提交前验证
 
-- `main`: always releasable or at least runnable
-- short-lived feature branches for substantial work
-- merge in small slices that preserve a working game loop
+至少运行：
 
-Recommended branch prefixes:
+```bash
+corepack pnpm test
+corepack pnpm test:desktop
+corepack pnpm test:scripts
+corepack pnpm typecheck
+```
 
-- `feat/`
-- `fix/`
-- `docs/`
-- `refactor/`
-- `test/`
+涉及打包或桌面启动时，额外运行：
 
-## Task Breakdown Rule
+```bash
+corepack pnpm dist:current
+```
 
-Every feature should be split across these layers when relevant:
+需要 Windows 产物时运行：
 
-1. domain rule
-2. persistence model
-3. API contract
-4. UI surface
-5. test coverage
+```bash
+corepack pnpm dist:win
+```
 
-This prevents UI-first development from hiding broken progression logic.
+如果在 macOS 上跨平台 Windows 打包没有生成产物，参考 [打包与发布文档](release.md) 的手动 Windows 打包流程。
 
-## Daily Development Loop
+## 测试范围
 
-1. Pick one vertical slice with a visible gameplay outcome.
-2. Write or update the domain rule first.
-3. Add or update the shared schema.
-4. Implement server persistence/API changes.
-5. Implement the client UI.
-6. Add tests for the slice.
-7. Manually verify the full flow.
-8. Record any balancing observations in docs or config comments.
+- `corepack pnpm test`：服务端 API、静态资源、TokenTracker 同步和账本逻辑。
+- `corepack pnpm test:desktop`：桌宠资源管理、状态持久化、拖动样式和视图映射。
+- `corepack pnpm test:scripts`：素材处理和脚本行为。
+- `corepack pnpm typecheck`：server/web TypeScript 检查。
 
-## Definition Of Done
+## 文档维护规则
 
-A task is done only when:
+以下内容变化时必须更新文档：
 
-- the feature works from the authoritative data path
-- the relevant domain logic has automated tests
-- edge cases are handled or explicitly documented
-- the UI reflects loading, empty, and error states where relevant
-- any schema/config changes are documented
+- 启动命令、端口、环境变量。
+- API 路由、请求/响应结构。
+- TokenTracker 同步逻辑或账本格式。
+- 桌宠右键菜单、资源管理、打包方式。
+- 新增平台启动方式或发布方式。
 
-## Local Workflow Setup
+## 代码约定
 
-### Initial Tooling
-
-Install and standardize on:
-
-- Node.js 22 LTS
-- pnpm 10+
-- Git
-- Playwright browsers
-
-### Planned Commands
-
-Keep these scripts available early:
-
-- `pnpm dev`: run web and server together
-- `pnpm test`: run all unit/integration tests
-- `pnpm test:e2e`: run Playwright tests
-- `pnpm lint`: run ESLint
-- `pnpm typecheck`: run TypeScript checks
-- `pnpm db:migrate`: apply Prisma migrations
-- `pnpm db:studio`: inspect local data
-
-## Recommended Delivery Order
-
-### Stage 1: Foundation
-
-- scaffold monorepo
-- configure TypeScript, ESLint, Prettier
-- configure shared package boundaries
-- add Prisma and first schema
-- add seed/mock generator
-
-### Stage 2: Deterministic Core
-
-- token event normalization
-- ledger generation
-- resource formulas
-- offline progression calculation
-- snapshot rebuild command
-
-### Stage 3: First Playable UI
-
-- dashboard shell
-- primary resource counter
-- token ingestion log
-- first building/upgrade list
-- save/sync state banner
-
-### Stage 4: Reliability
-
-- duplicate event protection
-- migration handling
-- error reporting
-- regression tests around progression math
-
-## Engineering Conventions
-
-### Domain Logic
-
-- Put progression math in pure functions under shared/domain modules.
-- Avoid mixing economy formulas into route handlers or React components.
-- Prefer append-only ledgers for auditability.
-
-### Config
-
-- Keep upgrade definitions and tuning values in structured config files.
-- Version balance data so changes can be traced when saves behave differently.
-
-### APIs
-
-- Validate all inbound payloads with Zod.
-- Use explicit DTOs rather than exposing raw ORM models.
-
-### Database
-
-- Favor additive migrations.
-- Keep seed data small and deterministic.
-- Create at least one rebuild path from raw token events to derived state.
-
-## Testing Workflow
-
-### Before Merging
-
-Run at minimum:
-
-- `pnpm typecheck`
-- `pnpm lint`
-- `pnpm test`
-
-Run `pnpm test:e2e` for:
-
-- onboarding changes
-- progression changes
-- persistence changes
-- token ingestion changes
-
-### Priority Test Matrix
-
-The most failure-prone systems are:
-
-- duplicate token ingestion
-- time-based progression
-- cost scaling and rounding
-- save recovery after schema changes
-- adapter mapping differences between providers
-
-## Documentation Workflow
-
-Update docs when any of these change:
-
-- data model
-- token event schema
-- progression formulas
-- environment setup
-- build/test commands
-
-Minimum documentation set to maintain:
-
-- `README.md`: project entry and current setup
-- `docs/tech-stack.md`: architectural decisions
-- `docs/workflow.md`: team execution rules
-- future `docs/game-design.md`: economy and feature design
-- future `docs/adr/`: architecture decision records when major choices change
-
-## Productivity Workflow For This Project
-
-To improve implementation speed in later steps, maintain these habits:
-
-- build shared schemas before feature-specific endpoints
-- keep one mock token source available at all times
-- prefer config-driven balancing over code edits
-- add debug panels early for token events, derived resource deltas, and offline calculations
-- keep deterministic fixture data for regression testing
-
-## Immediate Next Actions
-
-After these documents, the next efficient implementation sequence is:
-
-1. scaffold pnpm workspace and base apps
-2. define `TokenEvent` schema in `packages/shared`
-3. create Prisma schema for token ledger and player state
-4. implement mock token generator and ingestion endpoint
-5. render a minimal dashboard showing token-derived resources
-
-This order minimizes rework and gives a fast playable slice.
+- 服务端 authoritative state 写入账本，前端只展示和触发动作。
+- Token 事件 schema 先更新 `packages/shared`，再更新 server 和 web。
+- 桌宠资源统一通过 `desktop/pet-assets.cjs` 和 `desktop/custom-pet-assets.cjs` 管理。
+- 内置资源不在运行时物理删除；删除行为通过 userData 隐藏列表实现。
+- 打包产物不提交到 Git。

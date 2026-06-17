@@ -3,8 +3,8 @@ import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { tokenEventSchema, tokenEventToResourceDelta } from '@token-game/shared';
-import { appendEvent, ensureLedger, readLedger, updateLedger } from './store';
+import { ensureLedger, purgeMockEvents, readLedger, updateLedger } from './store';
+import { syncTokenTrackerUsage } from './token-tracker';
 
 type GameStateResponse = {
   player: {
@@ -21,7 +21,7 @@ type GameStateResponse = {
   };
   events: Array<{
     id: string;
-    source: 'mock' | 'manual-import' | 'openai';
+    source: 'mock' | 'manual-import' | 'openai' | 'tokentracker';
     model: string;
     kind: 'input' | 'output' | 'cached' | 'reasoning';
     tokenCount: number;
@@ -41,9 +41,11 @@ type ServerOptions = {
 type GameAppOptions = {
   staticRoot?: string;
   tickIntervalMs?: number;
+  tokenTrackerQueuePath?: string;
+  runExternalTrackerSync?: boolean;
 };
 
-const DEFAULT_TICK_INTERVAL_MS = 5000;
+const DEFAULT_TICK_INTERVAL_MS = 30_000;
 
 export function resolveWebStaticRoot(cwd = process.cwd()) {
   let current = path.resolve(cwd);
@@ -66,60 +68,13 @@ export function resolveWebStaticRoot(cwd = process.cwd()) {
 
 export const resolveStaticRoot = resolveWebStaticRoot;
 
-function createMockEvent(sequence: number) {
-  const tokenCount = 40 + ((sequence * 37) % 160);
-  const kinds = ['input', 'output', 'cached', 'reasoning'] as const;
-  const event = {
-    id: `evt-${sequence}`,
-    source: 'mock',
-    model: 'gpt-5-mini',
-    kind: kinds[sequence % kinds.length],
-    tokenCount,
-    occurredAt: new Date().toISOString(),
-    metadata: {
-      sequence,
-      generator: 'interval'
-    }
-  };
-
-  return tokenEventSchema.parse(event);
-}
-
 function getProcessorCost(level: number) {
   return 25 * 2 ** level;
 }
 
-function getFoodGainedForEvent(sequence: number) {
-  const event = createMockEvent(sequence);
-  const ledger = readLedger();
-  const baseFood = tokenEventToResourceDelta(event).food;
-  const bonusFood = ledger.player.processorLevel * 2;
-
-  return {
-    event,
-    foodGained: baseFood + bonusFood
-  };
-}
-
 async function ensurePlayerState() {
   ensureLedger();
-}
-
-async function seedInitialEventIfNeeded() {
-  const existingCount = readLedger().events.length;
-  if (existingCount > 0) {
-    return;
-  }
-
-  const { event, foodGained } = getFoodGainedForEvent(1);
-  appendEvent({ ...event, foodGained });
-}
-
-async function tickMockProgression() {
-  const sequence = readLedger().events.length + 1;
-  const { event, foodGained } = getFoodGainedForEvent(sequence);
-
-  appendEvent({ ...event, foodGained });
+  purgeMockEvents();
 }
 
 async function purchaseProcessorUpgrade() {
@@ -185,11 +140,18 @@ export async function createGameApp(options: GameAppOptions = {}) {
   app.get('/health', async () => ({ ok: true }));
 
   app.get('/api/state', async () => {
+    await syncTokenTrackerUsage({
+      queuePath: options.tokenTrackerQueuePath,
+      runExternalSync: options.runExternalTrackerSync
+    });
     return readGameState();
   });
 
   app.post('/api/actions/burst', async () => {
-    await tickMockProgression();
+    await syncTokenTrackerUsage({
+      queuePath: options.tokenTrackerQueuePath,
+      runExternalSync: options.runExternalTrackerSync
+    });
     return readGameState();
   });
 
@@ -210,10 +172,16 @@ export async function createGameApp(options: GameAppOptions = {}) {
   });
 
   await ensurePlayerState();
-  await seedInitialEventIfNeeded();
+  await syncTokenTrackerUsage({
+    queuePath: options.tokenTrackerQueuePath,
+    runExternalSync: options.runExternalTrackerSync
+  });
 
   const interval = setInterval(() => {
-    void tickMockProgression().catch((error) => {
+    void syncTokenTrackerUsage({
+      queuePath: options.tokenTrackerQueuePath,
+      runExternalSync: options.runExternalTrackerSync
+    }).catch((error) => {
       app.log.error(error);
     });
   }, tickIntervalMs);

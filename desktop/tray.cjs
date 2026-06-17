@@ -28,15 +28,27 @@ function createTrayMenu(app, actions) {
 }
 
 function createPetContextMenu(app, actions) {
+  const activeAsset = actions.getActivePetAsset();
   const petAssetItems = actions.listPetAssets().map((asset) => ({
     label: asset.label,
     type: 'radio',
-    checked: asset.id === actions.getActivePetAsset().id,
+    checked: asset.id === activeAsset.id,
     click: () => actions.setActivePetAsset(asset.id)
   }));
 
   return Menu.buildFromTemplate([
     { label: '打开游戏', click: actions.openGame },
+    { label: '添加图片桌宠...', click: actions.importPetAsset },
+    {
+      label: '重命名当前桌宠...',
+      enabled: Boolean(activeAsset),
+      click: actions.renameActivePetAsset
+    },
+    {
+      label: '删除当前桌宠...',
+      enabled: activeAsset.id !== 'default-cat',
+      click: actions.deleteActivePetAsset
+    },
     {
       label: '切换桌宠',
       submenu: petAssetItems

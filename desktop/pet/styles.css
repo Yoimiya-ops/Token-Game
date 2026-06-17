@@ -24,12 +24,6 @@ body {
   -webkit-app-region: drag;
 }
 
-.cat,
-.pet-image,
-.bubble {
-  -webkit-app-region: no-drag;
-}
-
 .cat {
   position: relative;
   width: 118px;
@@ -53,7 +47,6 @@ body {
   object-position: center bottom;
   filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.28));
   transform-origin: 50% 90%;
-  pointer-events: auto;
 }
 
 .pet[data-pet-kind='image'] .cat {

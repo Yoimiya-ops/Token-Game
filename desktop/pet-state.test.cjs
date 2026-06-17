@@ -47,6 +47,21 @@ test('persists selected pet asset id', () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
+test('persists selected custom pet asset id', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'token-game-pet-state-'));
+  const state = {
+    bounds: { x: 12, y: 24, width: 220, height: 220 },
+    alwaysOnTop: true,
+    activePetId: 'custom-my-pet'
+  };
+
+  savePetState(dir, state);
+
+  assert.deepEqual(loadPetState(dir), state);
+
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test('falls back to default pet asset id when invalid', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'token-game-pet-state-'));
 
