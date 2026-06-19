@@ -1,6 +1,6 @@
 # Token Game
 
-Token Game 是一个本地运行的 Electron 桌面宠物游戏。应用启动后会先显示一只可拖动的桌宠；单击桌宠触发互动，双击桌宠进入游戏界面。游戏会读取本机 TokenTracker 的真实 token 用量，并把新增 token 转换成猫粮。
+Token Game 是一个本地运行的 Electron 桌面宠物修仙游戏。应用启动后会先显示一只可拖动的桌宠；单击桌宠触发互动，双击桌宠进入游戏界面。游戏会读取本机 TokenTracker 的真实 token 用量，并把新增 token 包装成“天机入账”和“灵气”。
 
 ## 功能概览
 
@@ -10,7 +10,7 @@ Token Game 是一个本地运行的 Electron 桌面宠物游戏。应用启动�
 - 支持导入 png、jpg、jpeg、webp、gif、apng 图片作为自定义桌宠。
 - 内置资源可以重命名；非默认内置资源可以删除，删除后会从用户资源列表隐藏。
 - 默认桌宠是内置白猫 webp 动图。
-- 游戏界面使用 React 展示猫粮、已追踪 token、处理器等级和最近 token 事件。
+- 游戏界面使用 React 展示修炼、种田、打坐、炼丹、洞府资源和最近天机记录。
 - 后端使用 Fastify 内嵌在 Electron 中运行，默认监听 `127.0.0.1:3001`。
 - Token 用量通过 `tokentracker-cli` 读取 `~/.tokentracker/tracker/queue.jsonl`。
 

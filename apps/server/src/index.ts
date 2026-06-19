@@ -3,20 +3,35 @@ import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { ensureLedger, purgeMockEvents, readLedger, updateLedger } from './store';
+import {
+  breakthroughOnce,
+  ensureLedger,
+  farmOnce,
+  meditateOnce,
+  practiceOnce,
+  purgeMockEvents,
+  readLedger,
+  runAlchemy,
+  updateLedger
+} from './store';
 import { syncTokenTrackerUsage } from './token-tracker';
 
 type GameStateResponse = {
   player: {
     kittenName: string;
-    food: number;
+    realm: string;
+    realmLevel: number;
+    qi: number;
+    spiritStone: number;
+    spiritHerb: number;
+    pills: number;
+    cultivation: number;
     totalTokens: number;
     lastFedAt: string | null;
-    processorLevel: number;
-    lifetimeFoodSpent: number;
   };
   progression: {
-    nextProcessorCost: number;
+    nextPracticeCost: number;
+    nextBreakthroughCost: number;
     passiveIntervalMs: number;
   };
   events: Array<{
@@ -27,7 +42,7 @@ type GameStateResponse = {
     tokenCount: number;
     occurredAt: string;
     metadata?: Record<string, string | number | boolean>;
-    foodGained: number;
+    qiGained: number;
   }>;
 };
 
@@ -68,31 +83,35 @@ export function resolveWebStaticRoot(cwd = process.cwd()) {
 
 export const resolveStaticRoot = resolveWebStaticRoot;
 
-function getProcessorCost(level: number) {
-  return 25 * 2 ** level;
-}
-
 async function ensurePlayerState() {
   ensureLedger();
   purgeMockEvents();
 }
 
-async function purchaseProcessorUpgrade() {
-  let purchased = false;
+function getPracticeCost(level: number) {
+  return 12 * 2 ** level;
+}
 
+function getBreakthroughCost(level: number) {
+  return 100 * 2 ** level;
+}
+
+async function runLedgerAction(action: 'practice' | 'farm' | 'meditate' | 'alchemy' | 'breakthrough') {
+  let applied = false;
   updateLedger((ledger) => {
-    const cost = getProcessorCost(ledger.player.processorLevel);
-    if (ledger.player.food < cost) {
-      return;
+    if (action === 'practice') {
+      applied = practiceOnce(ledger);
+    } else if (action === 'farm') {
+      applied = farmOnce(ledger);
+    } else if (action === 'meditate') {
+      applied = meditateOnce(ledger);
+    } else if (action === 'alchemy') {
+      applied = runAlchemy(ledger);
+    } else {
+      applied = breakthroughOnce(ledger);
     }
-
-    ledger.player.food -= cost;
-    ledger.player.processorLevel += 1;
-    ledger.player.lifetimeFoodSpent += cost;
-    purchased = true;
   });
-
-  return purchased;
+  return applied;
 }
 
 async function readGameState(): Promise<GameStateResponse> {
@@ -103,14 +122,19 @@ async function readGameState(): Promise<GameStateResponse> {
   return {
     player: {
       kittenName: player.kittenName,
-      food: player.food,
+      realm: player.realm,
+      realmLevel: player.realmLevel,
+      qi: player.qi,
+      spiritStone: player.spiritStone,
+      spiritHerb: player.spiritHerb,
+      pills: player.pills,
+      cultivation: player.cultivation,
       totalTokens: player.totalTokens,
-      lastFedAt: player.lastFedAt,
-      processorLevel: player.processorLevel,
-      lifetimeFoodSpent: player.lifetimeFoodSpent
+      lastFedAt: player.lastFedAt
     },
     progression: {
-      nextProcessorCost: getProcessorCost(player.processorLevel),
+      nextPracticeCost: getPracticeCost(player.realmLevel),
+      nextBreakthroughCost: getBreakthroughCost(player.realmLevel),
       passiveIntervalMs: DEFAULT_TICK_INTERVAL_MS
     },
     events: events.map((event) => ({
@@ -120,7 +144,7 @@ async function readGameState(): Promise<GameStateResponse> {
       kind: event.kind,
       tokenCount: event.tokenCount,
       occurredAt: event.occurredAt,
-      foodGained: event.foodGained,
+      qiGained: event.qiGained,
       metadata: event.metadata
     }))
   };
@@ -155,15 +179,37 @@ export async function createGameApp(options: GameAppOptions = {}) {
     return readGameState();
   });
 
-  app.post('/api/upgrades/processor', async (_, reply) => {
-    const purchased = await purchaseProcessorUpgrade();
-    if (!purchased) {
+  app.post('/api/actions/practice', async (_, reply) => {
+    if (!(await runLedgerAction('practice'))) {
       reply.code(400);
-      return {
-        error: '猫粮不足，无法购买处理器升级。'
-      };
+      return { error: '灵气不足，无法继续修炼。' };
     }
+    return readGameState();
+  });
 
+  app.post('/api/actions/farm', async () => {
+    await runLedgerAction('farm');
+    return readGameState();
+  });
+
+  app.post('/api/actions/meditate', async () => {
+    await runLedgerAction('meditate');
+    return readGameState();
+  });
+
+  app.post('/api/actions/alchemy', async (_, reply) => {
+    if (!(await runLedgerAction('alchemy'))) {
+      reply.code(400);
+      return { error: '灵草或灵石不足，丹炉无法开火。' };
+    }
+    return readGameState();
+  });
+
+  app.post('/api/actions/breakthrough', async (_, reply) => {
+    if (!(await runLedgerAction('breakthrough'))) {
+      reply.code(400);
+      return { error: '修为或丹药不足，尚不可突破。' };
+    }
     return readGameState();
   });
 

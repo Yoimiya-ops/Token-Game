@@ -1,9 +1,17 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import type { TokenEvent } from '@token-game/shared';
+import {
+  getAlchemyYield,
+  getPracticeCost,
+  normalizeCultivationState,
+  realmNameForLevel,
+  type CultivationState,
+  type TokenEvent
+} from '@token-game/shared';
 
 export type StoredEvent = TokenEvent & {
-  foodGained: number;
+  qiGained: number;
+  foodGained?: number;
 };
 
 export type TrackerState = {
@@ -11,13 +19,10 @@ export type TrackerState = {
   lastSyncedAt: string | null;
 };
 
-export type PlayerState = {
+export type PlayerState = CultivationState & {
   kittenName: string;
-  food: number;
   totalTokens: number;
   lastFedAt: string | null;
-  processorLevel: number;
-  lifetimeFoodSpent: number;
 };
 
 export type Ledger = {
@@ -26,21 +31,12 @@ export type Ledger = {
   trackerState: TrackerState;
 };
 
-const configuredDataDir = process.env.TOKEN_GAME_DATA_DIR;
-const defaultDataDir = process.cwd().includes(`${join('apps', 'server')}`)
-  ? resolve(process.cwd(), 'data')
-  : resolve(process.cwd(), 'apps', 'server', 'data');
-const dataDir = configuredDataDir ? resolve(configuredDataDir) : defaultDataDir;
-const ledgerPath = resolve(dataDir, 'ledger.json');
-
 const initialLedger: Ledger = {
   player: {
     kittenName: 'Mochi',
-    food: 0,
+    ...normalizeCultivationState(undefined),
     totalTokens: 0,
-    lastFedAt: null,
-    processorLevel: 0,
-    lifetimeFoodSpent: 0
+    lastFedAt: null
   },
   events: [],
   trackerState: {
@@ -49,17 +45,47 @@ const initialLedger: Ledger = {
   }
 };
 
+function getDataDir() {
+  const configuredDataDir = process.env.TOKEN_GAME_DATA_DIR;
+  const defaultDataDir = process.cwd().includes(`${join('apps', 'server')}`)
+    ? resolve(process.cwd(), 'data')
+    : resolve(process.cwd(), 'apps', 'server', 'data');
+  return configuredDataDir ? resolve(configuredDataDir) : defaultDataDir;
+}
+
+function getLedgerPath() {
+  return resolve(getDataDir(), 'ledger.json');
+}
+
 function normalizeLedger(ledger: Partial<Ledger>): Ledger {
+  const legacyPlayer = ledger.player as Partial<PlayerState> & {
+    food?: number;
+    processorLevel?: number;
+  } | undefined;
+  const cultivation = normalizeCultivationState({
+    realm: legacyPlayer?.realm,
+    realmLevel: legacyPlayer?.realmLevel ?? legacyPlayer?.processorLevel,
+    qi: legacyPlayer?.qi ?? legacyPlayer?.food,
+    spiritStone: legacyPlayer?.spiritStone,
+    spiritHerb: legacyPlayer?.spiritHerb,
+    pills: legacyPlayer?.pills,
+    cultivation: legacyPlayer?.cultivation,
+    currentPage: legacyPlayer?.currentPage
+  });
+
   return {
     player: {
       kittenName: ledger.player?.kittenName ?? initialLedger.player.kittenName,
-      food: ledger.player?.food ?? initialLedger.player.food,
+      ...cultivation,
       totalTokens: ledger.player?.totalTokens ?? initialLedger.player.totalTokens,
-      lastFedAt: ledger.player?.lastFedAt ?? initialLedger.player.lastFedAt,
-      processorLevel: ledger.player?.processorLevel ?? initialLedger.player.processorLevel,
-      lifetimeFoodSpent: ledger.player?.lifetimeFoodSpent ?? initialLedger.player.lifetimeFoodSpent
+      lastFedAt: ledger.player?.lastFedAt ?? initialLedger.player.lastFedAt
     },
-    events: Array.isArray(ledger.events) ? ledger.events : [],
+    events: Array.isArray(ledger.events)
+      ? ledger.events.map((event) => ({
+          ...event,
+          qiGained: event.qiGained ?? event.foodGained ?? 0
+        }))
+      : [],
     trackerState: {
       bucketTokens:
         ledger.trackerState?.bucketTokens && typeof ledger.trackerState.bucketTokens === 'object'
@@ -71,6 +97,7 @@ function normalizeLedger(ledger: Partial<Ledger>): Ledger {
 }
 
 function ensureDataDir() {
+  const dataDir = getDataDir();
   if (!existsSync(dataDir)) {
     mkdirSync(dataDir, { recursive: true });
   }
@@ -85,6 +112,7 @@ function ensureParentDir(filePath: string) {
 
 export function ensureLedger() {
   ensureDataDir();
+  const ledgerPath = getLedgerPath();
 
   if (!existsSync(ledgerPath)) {
     writeLedger(initialLedger);
@@ -93,10 +121,12 @@ export function ensureLedger() {
 
 export function readLedger(): Ledger {
   ensureLedger();
+  const ledgerPath = getLedgerPath();
   return normalizeLedger(JSON.parse(readFileSync(ledgerPath, 'utf8')) as Partial<Ledger>);
 }
 
 export function writeLedger(ledger: Ledger) {
+  const ledgerPath = getLedgerPath();
   ensureParentDir(ledgerPath);
   writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2));
 }
@@ -109,7 +139,7 @@ export function appendEvent(event: StoredEvent) {
 
 export function applyStoredEvent(ledger: Ledger, event: StoredEvent) {
   ledger.events.unshift(event);
-  ledger.player.food += event.foodGained;
+  ledger.player.qi += event.qiGained;
   ledger.player.totalTokens += event.tokenCount;
   ledger.player.lastFedAt = event.occurredAt;
 }
@@ -131,10 +161,10 @@ export function purgeMockEventsFromLedger(ledger: Ledger) {
   }
 
   const mockTokens = mockEvents.reduce((sum, event) => sum + event.tokenCount, 0);
-  const mockFood = mockEvents.reduce((sum, event) => sum + event.foodGained, 0);
+  const mockQi = mockEvents.reduce((sum, event) => sum + event.qiGained, 0);
   ledger.events = ledger.events.filter((event) => event.source !== 'mock');
   ledger.player.totalTokens = Math.max(0, ledger.player.totalTokens - mockTokens);
-  ledger.player.food = Math.max(0, ledger.player.food - mockFood);
+  ledger.player.qi = Math.max(0, ledger.player.qi - mockQi);
   ledger.player.lastFedAt = ledger.events[0]?.occurredAt ?? null;
   return mockEvents.length;
 }
@@ -159,4 +189,61 @@ export function purgeMockEvents() {
     purged = purgeMockEventsFromLedger(ledger);
   });
   return purged;
+}
+
+export function createCultivationLedger(): Ledger {
+  return normalizeLedger({});
+}
+
+export function practiceOnce(ledger: Ledger) {
+  const cost = getPracticeCost(ledger.player.realmLevel);
+  if (ledger.player.qi < cost) {
+    return false;
+  }
+
+  ledger.player.qi -= cost;
+  ledger.player.cultivation += Math.floor(cost * 1.5);
+  ledger.player.currentPage = 'practice';
+  return true;
+}
+
+export function farmOnce(ledger: Ledger) {
+  ledger.player.spiritHerb += 3 + ledger.player.realmLevel;
+  ledger.player.spiritStone += 2;
+  ledger.player.currentPage = 'farm';
+  return true;
+}
+
+export function meditateOnce(ledger: Ledger) {
+  ledger.player.qi += 6 + ledger.player.realmLevel;
+  ledger.player.cultivation += 4 + ledger.player.realmLevel;
+  ledger.player.currentPage = 'meditate';
+  return true;
+}
+
+export function runAlchemy(ledger: Ledger) {
+  const yieldCount = getAlchemyYield(ledger.player.spiritHerb, ledger.player.spiritStone);
+  if (yieldCount <= 0) {
+    ledger.player.currentPage = 'alchemy';
+    return false;
+  }
+
+  ledger.player.spiritHerb -= yieldCount;
+  ledger.player.spiritStone -= yieldCount;
+  ledger.player.pills += yieldCount;
+  ledger.player.currentPage = 'alchemy';
+  return true;
+}
+
+export function breakthroughOnce(ledger: Ledger) {
+  const cost = 100 * 2 ** ledger.player.realmLevel;
+  if (ledger.player.cultivation < cost || ledger.player.pills < 1) {
+    return false;
+  }
+
+  ledger.player.cultivation -= cost;
+  ledger.player.pills -= 1;
+  ledger.player.realmLevel += 1;
+  ledger.player.realm = realmNameForLevel(ledger.player.realmLevel);
+  return true;
 }

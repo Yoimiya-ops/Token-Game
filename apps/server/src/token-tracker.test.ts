@@ -130,6 +130,6 @@ test('purges legacy mock events from an existing ledger', () => {
 
   const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8'));
   assert.equal(ledger.player.totalTokens, 100);
-  assert.equal(ledger.player.food, 10);
+  assert.equal(ledger.player.qi, 10);
   assert.deepEqual(ledger.events.map((event: { id: string }) => event.id), ['real']);
 });

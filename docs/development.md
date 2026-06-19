@@ -73,7 +73,8 @@ corepack pnpm start
 
 ### `packages/shared`
 
-- `src/token-event.ts`：TokenEvent schema 和 token 到资源的换算规则。
+- `src/token-event.ts`：TokenEvent schema。
+- `src/cultivation.ts`：修仙资源、境界和行动成本的共享规则。
 
 ### `scripts`
 
@@ -89,7 +90,7 @@ corepack pnpm start
 ~/.tokentracker/tracker/queue.jsonl
 ```
 
-如果没有 TokenTracker 数据，应用仍然可以启动，只是不会新增猫粮。测试里可以通过 `tokenTrackerQueuePath` 注入临时队列文件。
+如果没有 TokenTracker 数据，应用仍然可以启动，只是不会新增灵气。测试里可以通过 `tokenTrackerQueuePath` 注入临时队列文件。
 
 ## 桌宠资源规则
 

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { tokenEventSchema, tokenEventToResourceDelta, type TokenEvent } from '@token-game/shared';
+import { tokenEventSchema, tokenEventToQi, type TokenEvent } from '@token-game/shared';
 import { applyStoredEvent, updateLedger, updateLedgerFile, type Ledger } from './store';
 
 type QueueRow = {
@@ -149,8 +149,8 @@ export function loadTokenTrackerEventsFromQueue(queuePath = resolveTokenTrackerQ
   return events;
 }
 
-function foodGainedFor(deltaEvent: TokenEvent, processorLevel: number) {
-  return tokenEventToResourceDelta(deltaEvent).food + processorLevel * 2;
+function qiGainedFor(deltaEvent: TokenEvent, realmLevel: number) {
+  return tokenEventToQi(deltaEvent.tokenCount) + realmLevel * 2;
 }
 
 function applyTrackerEvents(ledger: Ledger, events: TokenEvent[]) {
@@ -172,7 +172,7 @@ function applyTrackerEvents(ledger: Ledger, events: TokenEvent[]) {
       ...event,
       id: `${event.id}:delta-${delta}`,
       tokenCount: delta,
-      foodGained: foodGainedFor({ ...event, tokenCount: delta }, ledger.player.processorLevel)
+      qiGained: qiGainedFor({ ...event, tokenCount: delta }, ledger.player.realmLevel)
     };
 
     applyStoredEvent(ledger, deltaEvent);
