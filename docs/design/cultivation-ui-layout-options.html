@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Token Game 修仙 UI 多方案</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #06100d;
+      --paper: #f4ead2;
+      --paper-2: #e7d6b3;
+      --jade: #78c7a2;
+      --jade-deep: #15382f;
+      --gold: #e6bd68;
+      --red: #c55d48;
+      --blue: #83a8ff;
+      --violet: #9c83ff;
+      --text: #f7f0df;
+      --muted: #b8c5b5;
+      --line: rgba(235, 207, 142, .26);
+      --shadow: 0 22px 70px rgba(0,0,0,.32);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      background: #070d0b;
+      color: var(--text);
+    }
+    button { min-height: 44px; border: 0; border-radius: 8px; padding: 0 16px; font: inherit; font-weight: 800; cursor: pointer; }
+    .page { max-width: 1720px; margin: 0 auto; padding: 28px; }
+    .intro { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 22px; }
+    .intro h1 { margin: 6px 0 0; font-size: 38px; line-height: 1.15; letter-spacing: 0; }
+    .intro p { max-width: 720px; margin: 0; color: var(--muted); line-height: 1.7; }
+    .eyebrow { color: var(--gold); font-size: 13px; font-weight: 900; }
+    .chooser { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; position: sticky; top: 0; z-index: 5; padding: 10px 0; background: rgba(7,13,11,.88); backdrop-filter: blur(12px); }
+    .chooser a { display: block; min-height: 64px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); text-decoration: none; background: rgba(255,255,255,.04); }
+    .chooser b { display: block; margin-bottom: 3px; }
+    .chooser span { color: var(--muted); font-size: 12px; }
+    .option { margin: 24px 0 40px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow); }
+    .option-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 90px; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+    .option-head h2 { margin: 4px 0 0; font-size: 30px; letter-spacing: 0; }
+    .score { display: grid; grid-template-columns: repeat(3, 88px); gap: 8px; text-align: center; }
+    .score div { padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.04); }
+    .score small { display: block; color: var(--muted); }
+    .score b { color: var(--gold); }
+    .frame { min-height: 720px; padding: 18px; }
+    .mini-title { margin: 0 0 10px; color: var(--muted); font-size: 13px; font-weight: 800; }
+    .resource { display: flex; gap: 8px; flex-wrap: wrap; }
+    .resource span { padding: 7px 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; background: rgba(0,0,0,.18); color: var(--text); font-size: 12px; }
+    .primary { color: #1d1303; background: linear-gradient(135deg, #f2d88f, #d89843); }
+    .ghost { color: var(--text); background: rgba(255,255,255,.08); border: 1px solid var(--line); }
+    .menu-list { display: grid; gap: 8px; }
+    .menu-list button { display: flex; align-items: center; justify-content: space-between; width: 100%; color: var(--text); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }
+    .meter { height: 8px; border-radius: 999px; overflow: hidden; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.12); }
+    .meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--jade), var(--gold)); }
+    .small-panel { border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 12px; background: rgba(0,0,0,.18); }
+    .small-panel h4 { margin: 0 0 8px; font-size: 16px; }
+    .small-panel p { margin: 0; color: var(--muted); line-height: 1.55; font-size: 13px; }
+
+    /* A */
+    .a { background: linear-gradient(135deg, #08130f, #132a23); }
+    .a .frame { display: grid; grid-template-columns: 260px 1fr 300px; grid-template-rows: 82px 1fr 180px; gap: 12px; }
+    .a .top, .a .left, .a .right, .a .bottom, .a .map { border: 1px solid var(--line); border-radius: 8px; background: rgba(9,22,18,.8); }
+    .a .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; }
+    .a .left { padding: 16px; }
+    .a .right { padding: 16px; }
+    .a .map { position: relative; overflow: hidden; background: linear-gradient(180deg, #102a23, #0b1714); }
+    .a .map:before { content:""; position:absolute; inset:auto 0 0; height:55%; background: linear-gradient(160deg, transparent 30%, rgba(120,199,162,.16) 30% 44%, transparent 44%), #17281f; clip-path: polygon(0 64%, 10% 38%, 24% 58%, 39% 26%, 56% 54%, 72% 32%, 100% 62%, 100% 100%, 0 100%); }
+    .a .basin { position:absolute; left:50%; top:48%; transform:translate(-50%,-50%); width:220px; height:150px; border:2px solid rgba(230,189,104,.8); border-radius: 999px 999px 50px 50px; display:grid; place-items:center; color:var(--gold); font-size:24px; font-weight:900; background: radial-gradient(ellipse at 50% 32%, rgba(120,199,162,.65), rgba(8,18,16,.82) 62%), linear-gradient(#6a4e2b,#16100a); box-shadow: 0 0 46px rgba(120,199,162,.25); }
+    .a .building { position:absolute; min-width:110px; min-height:50px; border:1px solid var(--line); border-radius:8px; color:var(--text); background:rgba(7,15,13,.86); font-weight:800; }
+    .a .b1{left:8%;top:14%}.a .b2{right:8%;top:16%}.a .b3{left:13%;bottom:18%}.a .b4{right:12%;bottom:16%}.a .b5{left:43%;top:9%}.a .b6{left:43%;bottom:8%}
+    .a .bottom { grid-column: 1 / -1; display:grid; grid-template-columns: repeat(4,1fr); gap:10px; padding:12px; }
+
+    /* B */
+    .b { background: #0d1113; }
+    .b .frame { display:grid; grid-template-columns: 84px 1.15fr .85fr 320px; gap:12px; background: linear-gradient(135deg,#0d1113,#17211d); }
+    .b .dock, .b .hero-panel, .b .work-panel, .b .queue { border:1px solid rgba(226,196,132,.22); border-radius:8px; background:rgba(16,24,22,.9); }
+    .b .dock { display:flex; flex-direction:column; align-items:center; gap:10px; padding:12px 8px; }
+    .b .dock button { width:52px; height:52px; padding:0; color:var(--gold); background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); }
+    .b .hero-panel { padding:18px; display:grid; grid-template-rows:auto 1fr auto; }
+    .b .wide-scene { position:relative; min-height:420px; margin:14px 0; border-radius:8px; border:1px solid rgba(255,255,255,.1); background: linear-gradient(180deg,#183a30,#101715); overflow:hidden; }
+    .b .wide-scene:after { content:"掌中洞天"; position:absolute; left:24px; bottom:22px; color:rgba(255,255,255,.72); font-size:28px; font-weight:900; }
+    .b .lane { position:absolute; left:28px; right:28px; height:70px; border:1px solid rgba(230,189,104,.28); border-radius:999px; background:rgba(0,0,0,.18); }
+    .b .l1{top:52px}.b .l2{top:160px}.b .l3{top:268px}
+    .b .work-panel { padding:18px; }
+    .b .tabs { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:14px; }
+    .b .tabs button { color:var(--text); background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); }
+    .b .big-action { min-height:220px; display:grid; place-items:center; text-align:center; border:1px solid rgba(230,189,104,.3); border-radius:8px; background:linear-gradient(180deg,rgba(120,199,162,.12),rgba(0,0,0,.2)); }
+    .b .big-action b { font-size:30px; color:var(--gold); }
+    .b .queue { padding:18px; }
+    .b .task { padding:12px; margin-bottom:10px; border:1px solid rgba(255,255,255,.1); border-radius:8px; background:rgba(255,255,255,.04); }
+
+    /* C */
+    .c { background: #211811; color:#24170a; }
+    .c .frame { background: linear-gradient(135deg,#dbc596,#f3e4bd); display:grid; grid-template-columns: 1fr 360px; gap:18px; color:#24170a; }
+    .c .scroll, .c .sheet { border:1px solid rgba(96,61,25,.34); border-radius:8px; background:rgba(255,250,235,.68); box-shadow:0 18px 40px rgba(76,45,14,.18); }
+    .c .scroll { position:relative; overflow:hidden; padding:20px; }
+    .c .scroll h3 { font-size:28px; margin:0 0 12px; }
+    .c .route { position:absolute; left:90px; top:150px; right:90px; bottom:110px; border:2px dashed rgba(96,61,25,.28); border-radius: 45% 55% 48% 52%; }
+    .c .ink-node { position:absolute; min-width:128px; height:54px; border:1px solid rgba(96,61,25,.36); border-radius:8px; background:#f9edcc; font-weight:900; color:#24170a; }
+    .c .n1{left:12%;top:19%}.c .n2{right:14%;top:22%}.c .n3{left:16%;bottom:23%}.c .n4{right:18%;bottom:18%}.c .n5{left:42%;top:44%;height:84px;width:160px;color:#24170a;background:#dfbd71}
+    .c .sheet { padding:18px; }
+    .c .sheet p, .c .sheet small { color:#6c4c25; }
+    .c .paper-card { padding:14px; margin:12px 0; border:1px solid rgba(96,61,25,.25); border-radius:8px; background:rgba(255,255,255,.36); }
+    .c button { background:#32200d; color:#f8eac7; }
+
+    /* D */
+    .d { background: linear-gradient(135deg,#060a12,#101a2a); }
+    .d .frame { display:grid; grid-template-columns: 300px 1fr 330px; gap:14px; background:linear-gradient(135deg,#071021,#111827); }
+    .d .matrix, .d .core, .d .inspector { border:1px solid rgba(131,168,255,.3); border-radius:8px; background:rgba(9,16,30,.88); }
+    .d .matrix { padding:16px; }
+    .d .matrix .glitch { color:var(--blue); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; line-height:1.7; }
+    .d .core { position:relative; overflow:hidden; }
+    .d .core:before { content:""; position:absolute; inset:42px; border:1px solid rgba(131,168,255,.3); transform:skewY(-8deg); }
+    .d .terminal { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:280px; min-height:170px; border:1px solid rgba(230,189,104,.55); border-radius:8px; display:grid; place-items:center; text-align:center; background:rgba(4,8,14,.86); box-shadow:0 0 70px rgba(131,168,255,.2); }
+    .d .terminal b { color:var(--gold); font-size:26px; }
+    .d .sys-node { position:absolute; width:132px; height:54px; border:1px solid rgba(131,168,255,.26); border-radius:8px; color:#d8e2ff; background:rgba(131,168,255,.08); font-weight:800; }
+    .d .s1{left:8%;top:15%}.d .s2{right:8%;top:17%}.d .s3{left:10%;bottom:17%}.d .s4{right:9%;bottom:20%}.d .s5{left:42%;top:10%}.d .s6{left:42%;bottom:9%}
+    .d .inspector { padding:16px; }
+    .d .readout { padding:12px; margin:10px 0; border:1px solid rgba(131,168,255,.18); border-radius:8px; background:rgba(131,168,255,.06); }
+    .d .readout b { color:var(--blue); }
+    .d .primary { color:#061020; background:linear-gradient(135deg,#9bb8ff,#e6bd68); }
+
+    @media (max-width: 900px) {
+      .page { padding: 16px; }
+      .intro, .option-head { display:block; }
+      .chooser { grid-template-columns: 1fr; position: static; }
+      .option { overflow-x:auto; }
+      .frame { min-width: 1180px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="intro">
+      <div><span class="eyebrow">Token Game 修仙 UI 选择稿</span><h1>四套主界面方向，选一个继续深化</h1></div>
+      <p>上一版的问题是“像文档，不像游戏”。这次每套都围绕真实游戏第一屏设计：主操作、资源状态、建筑菜单和玩法预览都放进去。你选方向后，我再把对应方向拆成主界面、建筑详情、弹窗、背包、坊市等完整页面。</p>
+    </section>
+    <nav class="chooser">
+      <a href="#a"><b>A 洞府地图版</b><span>最像挂机经营游戏，聚宝盆居中</span></a>
+      <a href="#b"><b>B 高效面板版</b><span>信息密度最高，适合桌面端长期开着</span></a>
+      <a href="#c"><b>C 山门卷轴版</b><span>古风最强，菜单像一张洞府图</span></a>
+      <a href="#d"><b>D 天衍暗线版</b><span>修仙 + 超级计算机，辨识度最高</span></a>
+    </nav>
+
+    <section class="option a" id="a">
+      <header class="option-head"><div><span class="eyebrow">方案 A</span><h2>洞府地图版：第一眼就是你的掌中洞天</h2></div><div class="score"><div><small>美术感</small><b>高</b></div><div><small>可玩性</small><b>高</b></div><div><small>开发量</small><b>中</b></div></div></header>
+      <div class="frame">
+        <div class="top"><div><span class="eyebrow">云栖小筑</span><h3 style="margin:4px 0 0">掌中洞天 · 第三日</h3></div><div class="resource"><span>灵气 86,240</span><span>薪火 128</span><span>灵石 3,420</span><span>寿元 186</span></div><button class="primary">读取天机</button></div>
+        <aside class="left"><p class="mini-title">角色状态</p><h3>炼气七重</h3><div class="meter"><i style="width:62%"></i></div><p style="color:var(--muted);line-height:1.6">突破准备 62%，今日宜炼丹，忌出行。</p><button class="ghost" style="width:100%">封山闭关</button></aside>
+        <main class="map"><button class="building b1">灵植园</button><button class="building b2">丹房</button><button class="building b3">兽栏</button><button class="building b4">坊市</button><button class="building b5">阵枢</button><button class="building b6">藏经阁</button><div class="basin">聚宝盆</div></main>
+        <aside class="right"><p class="mini-title">当前建筑</p><h3>聚宝盆</h3><p style="color:var(--muted);line-height:1.6">投入薪火后凝聚物品。可能是灵芝、陨铁、残卷、灵兽蛋，也可能是一条死鱼。</p><button class="primary" style="width:100%">投入薪火凝聚</button><div style="height:12px"></div><div class="menu-list"><button>定向凝聚 <span>未解锁</span></button><button>产物池 <span>二阶</span></button><button>凝聚记录 <span>24</span></button></div></aside>
+        <footer class="bottom"><div class="small-panel"><h4>灵植园</h4><p>三块灵田成熟，可一键采收。</p></div><div class="small-panel"><h4>丹房</h4><p>破境丹材料足够，炸炉风险 12%。</p></div><div class="small-panel"><h4>灵兽</h4><p>青羽鹤外出 18 分钟后归来。</p></div><div class="small-panel"><h4>访客</h4><p>云游商人在会客亭等待交易。</p></div></footer>
+      </div>
+    </section>
+
+    <section class="option b" id="b">
+      <header class="option-head"><div><span class="eyebrow">方案 B</span><h2>高效面板版：桌面端常驻，所有收益一眼扫完</h2></div><div class="score"><div><small>美术感</small><b>中</b></div><div><small>可玩性</small><b>高</b></div><div><small>开发量</small><b>低</b></div></div></header>
+      <div class="frame">
+        <nav class="dock"><button>洞府</button><button>盆</button><button>田</button><button>丹</button><button>兽</button><button>阵</button><button>市</button></nav>
+        <section class="hero-panel"><div><span class="eyebrow">挂机总览</span><h3 style="margin:4px 0 0;font-size:28px">今日收益 +12,840 灵气</h3></div><div class="wide-scene"><div class="lane l1"></div><div class="lane l2"></div><div class="lane l3"></div></div><div class="resource"><span>聚灵倍率 x3.2</span><span>洞府隐匿 91%</span><span>宠物旅行中</span></div></section>
+        <section class="work-panel"><p class="mini-title">当前玩法</p><div class="tabs"><button>聚宝盆</button><button>灵植园</button><button>丹房</button><button>阵枢</button></div><div class="big-action"><div><b>凝聚中</b><p style="color:var(--muted)">剩余 00:18，二阶产物池</p><button class="primary">加一份薪火</button></div></div><div style="height:12px"></div><div class="small-panel"><h4>下一步建议</h4><p>先采收灵草，再批量炼制破境丹，今晚可尝试突破。</p></div></section>
+        <aside class="queue"><p class="mini-title">自动队列</p><div class="task"><b>灵田灌溉</b><p>每 15 分钟自动执行</p></div><div class="task"><b>炼丹十炉</b><p>材料足够 8 炉</p></div><div class="task"><b>灵兽探险</b><p>携带遁地符、龟息符</p></div><div class="task"><b>天机札记</b><p>发现一处废弃宗门遗址</p></div></aside>
+      </div>
+    </section>
+
+    <section class="option c" id="c">
+      <header class="option-head"><div><span class="eyebrow">方案 C</span><h2>山门卷轴版：古风味最足，像打开一张洞府图</h2></div><div class="score"><div><small>美术感</small><b>高</b></div><div><small>可玩性</small><b>中</b></div><div><small>开发量</small><b>中</b></div></div></header>
+      <div class="frame">
+        <main class="scroll"><h3>云栖宗遗址</h3><p style="max-width:520px;color:#6c4c25;line-height:1.65">破落山门由你一人支撑。所有玩法都画在洞府图上，点击建筑像翻开一页札记。</p><div class="route"></div><button class="ink-node n1">灵植园</button><button class="ink-node n2">丹房</button><button class="ink-node n3">兽栏</button><button class="ink-node n4">会客亭</button><button class="ink-node n5">聚宝盆</button></main>
+        <aside class="sheet"><span class="eyebrow" style="color:#7a4a16">今日卦象</span><h3 style="font-size:28px;margin:8px 0">小吉 · 宜蕴养</h3><p>灵植品质提升，外出有小险。建议封山半日，等待青羽鹤带回坊市情报。</p><div class="paper-card"><b>聚宝盆</b><p>可凝聚 1 次，当前产物池：二阶。</p></div><div class="paper-card"><b>灵植园</b><p>七叶芝进入变异窗口。</p></div><div class="paper-card"><b>丹房</b><p>炉火稳定，适合炼制寿元丹。</p></div><button style="width:100%">翻开洞府札记</button></aside>
+      </div>
+    </section>
+
+    <section class="option d" id="d">
+      <header class="option-head"><div><span class="eyebrow">方案 D</span><h2>天衍暗线版：表层修仙，底层是宇宙级计算终端</h2></div><div class="score"><div><small>美术感</small><b>高</b></div><div><small>可玩性</small><b>中</b></div><div><small>开发量</small><b>高</b></div></div></header>
+      <div class="frame">
+        <aside class="matrix"><p class="mini-title">天衍残响</p><div class="glitch">SYNC / AURA_STREAM<br/>REALM: QI_07<br/>NODE: TREASURE_BASIN<br/>BUGFIX: IMMORTAL_TEMPLATE<br/>RISK: HEAVEN_REACTION 18%<br/>USER_INTENT: STAY_HOME<br/>OUTPUT_POOL: TIER_02</div><div style="height:18px"></div><button class="primary" style="width:100%">读取天机</button></aside>
+        <main class="core"><button class="sys-node s1">灵植园</button><button class="sys-node s2">丹房</button><button class="sys-node s3">兽栏</button><button class="sys-node s4">坊市</button><button class="sys-node s5">阵枢</button><button class="sys-node s6">藏经阁</button><div class="terminal"><div><b>聚宝盆</b><p style="color:#aebfff">物质凝聚终端</p></div></div></main>
+        <aside class="inspector"><p class="mini-title">终端面板</p><div class="readout"><b>凝聚结果预测</b><p>灵材 52% · 残卷 18% · 法器 8% · 无用物 22%</p></div><div class="readout"><b>洞府遮蔽</b><p>遮天蔽日阵运行稳定，仇家追踪概率 3%。</p></div><div class="readout"><b>主线扰动</b><p>你连续拒绝外出，青云宗覆灭概率上升。</p></div><button class="primary" style="width:100%">执行凝聚</button></aside>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
