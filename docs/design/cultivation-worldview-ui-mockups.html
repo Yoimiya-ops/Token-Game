@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Token Game 世界观 UI 设计图</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #07100e;
+      --deep: #0b1714;
+      --panel: rgba(19, 34, 30, .9);
+      --panel-2: rgba(29, 45, 38, .88);
+      --line: rgba(231, 199, 127, .26);
+      --line-hot: rgba(237, 191, 91, .56);
+      --text: #f8f0df;
+      --muted: #b8c5b5;
+      --gold: #e9b85f;
+      --jade: #80c7a7;
+      --cinnabar: #c85f4a;
+      --violet: #7f8bd8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      color: var(--text);
+      background: linear-gradient(135deg, #07100e, #10231d 46%, #161719);
+    }
+    .wrap { max-width: 1560px; margin: 0 auto; padding: 28px; }
+    .hero { min-height: 430px; display: grid; grid-template-columns: 1.05fr .95fr; gap: 22px; align-items: stretch; }
+    .hero-copy { padding: 34px 0; }
+    small, .eyebrow { color: var(--gold); font-weight: 800; letter-spacing: 0; }
+    h1 { margin: 10px 0 16px; font-size: 54px; line-height: 1.05; letter-spacing: 0; }
+    h2, h3 { letter-spacing: 0; }
+    p { color: var(--muted); line-height: 1.65; }
+    .hero-copy p { max-width: 720px; font-size: 18px; }
+    .principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 28px; }
+    .pill, .principles div, .side, .detail, .mockup, .legend, .palette div { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .principles div { padding: 14px; min-height: 92px; }
+    .hero-art { position: relative; overflow: hidden; border: 1px solid var(--line-hot); border-radius: 8px; background: linear-gradient(160deg, rgba(128,199,167,.18), rgba(233,184,95,.08)), #0b1714; }
+    .hero-art:before { content: ""; position: absolute; inset: 32px 80px auto auto; width: 170px; height: 170px; border-radius: 999px; background: rgba(233,184,95,.18); box-shadow: 0 0 60px rgba(233,184,95,.24); }
+    .mountain { position: absolute; left: -40px; right: -40px; bottom: 0; height: 58%; background: linear-gradient(135deg, transparent 20%, rgba(128,199,167,.18) 20% 32%, transparent 32%), linear-gradient(165deg, transparent 42%, rgba(0,0,0,.42) 42%), #13231e; clip-path: polygon(0 72%, 12% 40%, 28% 62%, 42% 24%, 58% 55%, 74% 31%, 100% 68%, 100% 100%, 0 100%); }
+    .floating-basin { position: absolute; left: 50%; top: 49%; width: 190px; height: 118px; transform: translate(-50%, -50%); border: 2px solid var(--line-hot); border-radius: 50% 50% 34px 34px; background: radial-gradient(ellipse at 50% 30%, rgba(128,199,167,.78), rgba(8,19,17,.72) 58%), linear-gradient(#56412b, #16100a); box-shadow: inset 0 0 28px rgba(233,184,95,.32), 0 0 56px rgba(128,199,167,.3); }
+    .floating-basin:after { content: "聚宝盆"; position: absolute; left: 50%; bottom: -34px; transform: translateX(-50%); color: var(--gold); font-weight: 900; white-space: nowrap; }
+    .legend { margin-top: 22px; padding: 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .legend b { display: block; margin-bottom: 6px; }
+    .palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 22px 0; }
+    .palette div { height: 76px; padding: 10px; display: flex; align-items: end; font-size: 12px; font-weight: 800; }
+    .c1 { background:#07100e!important; } .c2 { background:#10231d!important; } .c3 { background:#80c7a7!important; color:#07100e; } .c4 { background:#e9b85f!important; color:#211300; } .c5 { background:#c85f4a!important; } .c6 { background:#7f8bd8!important; color:#07100e; }
+    .board { display: grid; gap: 26px; margin-top: 26px; }
+    .mockup { min-width: 1180px; overflow: hidden; box-shadow: 0 20px 70px rgba(0,0,0,.26); }
+    .mock-head { height: 82px; display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); background: rgba(8,19,17,.62); }
+    .mock-head h2 { margin: 4px 0 0; font-size: 28px; }
+    .mock-head strong { color: var(--gold); }
+    .screen-body { display: grid; grid-template-columns: 210px 1fr 280px; gap: 14px; min-height: 560px; padding: 14px; }
+    .side, .detail { padding: 16px; }
+    .side p { margin: 14px 0; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+    .scene { position: relative; overflow: hidden; min-height: 532px; border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(180deg, rgba(9,26,23,.96), rgba(7,16,14,.96)); }
+    .moon { position: absolute; right: 54px; top: 38px; width: 98px; height: 98px; border-radius: 999px; background: #eadfb9; box-shadow: 0 0 42px rgba(233,184,95,.24); opacity: .78; }
+    .mist { position:absolute; height: 80px; border-radius: 999px; background: rgba(128,199,167,.08); filter: blur(2px); }
+    .mist-a { left: 7%; right: 20%; top: 30%; } .mist-b { left: 22%; right: 8%; bottom: 18%; }
+    .basin { position: absolute; left: 50%; top: 50%; width: 210px; height: 136px; transform: translate(-50%, -50%); display: grid; place-items: center; border: 2px solid var(--line-hot); border-radius: 999px 999px 48px 48px; color: var(--gold); font-size: 22px; font-weight: 900; background: radial-gradient(ellipse at 50% 33%, rgba(128,199,167,.72), rgba(7,16,14,.72) 58%), linear-gradient(#5b3d25, #140d08); }
+    .basin i { position: absolute; inset: 26px 38px auto; height: 30px; border-radius: 999px; background: rgba(248,240,223,.18); }
+    .basin b { z-index: 1; }
+    .node { position: absolute; min-width: 112px; height: 48px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); background: rgba(20,38,33,.9); font-weight: 800; }
+    .node-1 { left: 10%; top: 16%; } .node-2 { left: 13%; bottom: 18%; } .node-3 { right: 12%; top: 17%; } .node-4 { right: 10%; bottom: 22%; } .node-5 { left: 42%; top: 12%; } .node-6 { left: 42%; bottom: 10%; }
+    .detail b { color: var(--gold); font-size: 20px; }
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+    .tags span { padding: 8px 10px; border: 1px solid rgba(128,199,167,.28); border-radius: 999px; color: var(--jade); background: rgba(128,199,167,.08); }
+    button { min-height: 44px; border: 0; border-radius: 8px; padding: 0 16px; color: #211300; background: linear-gradient(135deg, #f1d28a, #cf8f38); font-weight: 900; }
+    .notes { margin-top: 26px; padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: rgba(0,0,0,.18); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-copy">
+        <small>Token Game / 世界观 UI 设计图</small>
+        <h1>苟道修仙，不出洞府也能问鼎长生</h1>
+        <p>这套 UI 把“掌中洞天”作为第一屏：玩家不是在菜单里找功能，而是在自己的洞府里点建筑。聚宝盆是核心心跳，Token 消耗被包装成“投入薪火、凝聚万物”，家园建筑承载种田、炼丹、灵兽、阵法、功法与情报。</p>
+        <div class="principles">
+          <div><b>低决策成本</b><p>随手点一下、挂机等待、收获惊喜，符合摸鱼玩家。</p></div>
+          <div><b>苟道安全感</b><p>阵法、防具、封山闭关都要被 UI 明确表达。</p></div>
+          <div><b>表里双层叙事</b><p>表层古典修仙，暗层天衍计算机以“天机噪声”露出。</p></div>
+        </div>
+      </div>
+      <div class="hero-art"><div class="mountain"></div><div class="floating-basin"></div></div>
+    </section>
+
+    <section class="legend">
+      <div><b>视觉关键词</b><p>墨绿洞府、铜金铭文、玉色灵液、朱砂警示。</p></div>
+      <div><b>布局原则</b><p>桌面端用三栏：角色/洞府/资源；移动端转为底部建筑导航。</p></div>
+      <div><b>核心动效</b><p>灵液翻涌、阵纹点亮、天机读取时短暂遮罩。</p></div>
+      <div><b>交互原则</b><p>每屏一个主按钮，其他操作放到建筑详情里。</p></div>
+    </section>
+
+    <section class="palette">
+      <div class="c1">#07100e 墨黑</div><div class="c2">#10231d 洞府绿</div><div class="c3">#80c7a7 灵玉</div><div class="c4">#e9b85f 铜金</div><div class="c5">#c85f4a 朱砂</div><div class="c6">#7f8bd8 天衍蓝</div>
+    </section>
+
+    <div class="board">
+      
+      <section class="mockup" id="screen-1">
+        <header class="mock-head">
+          <div><small>01 / 主界面</small><h2>掌中洞天总览</h2></div>
+          <strong>炼气七重</strong>
+        </header>
+        <div class="screen-body">
+          <aside class="side">
+            <b>资源</b>
+            <p>灵气 86,240</p><p>薪火 128</p><p>灵石 3,420</p><p>灵草 96</p>
+          </aside>
+          <main class="scene">
+            <div class="moon"></div>
+            <div class="mist mist-a"></div><div class="mist mist-b"></div>
+            <div class="basin"><i></i><b>主界面</b></div>
+            <button class="node node-1">聚宝盆</button><button class="node node-2">灵植园</button><button class="node node-3">丹房</button><button class="node node-4">兽栏</button><button class="node node-5">阵枢</button><button class="node node-6">藏经阁</button>
+          </main>
+          <aside class="detail">
+            <b>掌中洞天总览</b>
+            <p>聚宝盆居中，洞府建筑环绕，右侧显示今日气运和资源，底部是天机札记。</p>
+            <div class="tags"><span>聚宝盆</span><span>灵植园</span><span>丹房</span><span>兽栏</span><span>阵枢</span><span>藏经阁</span></div>
+            <button>进入主界面</button>
+          </aside>
+        </div>
+      </section>
+      <section class="mockup" id="screen-2">
+        <header class="mock-head">
+          <div><small>02 / 聚宝盆</small><h2>烧 Token 凝聚</h2></div>
+          <strong>炼气七重</strong>
+        </header>
+        <div class="screen-body">
+          <aside class="side">
+            <b>资源</b>
+            <p>灵气 86,240</p><p>薪火 128</p><p>灵石 3,420</p><p>灵草 96</p>
+          </aside>
+          <main class="scene">
+            <div class="moon"></div>
+            <div class="mist mist-a"></div><div class="mist mist-b"></div>
+            <div class="basin"><i></i><b>聚宝盆</b></div>
+            <button class="node node-1">投入薪火</button><button class="node node-2">定向凝聚</button><button class="node node-3">产物池</button><button class="node node-4">保底进度</button>
+          </main>
+          <aside class="detail">
+            <b>烧 Token 凝聚</b>
+            <p>核心抽取玩法：投入薪火，等待灵液翻涌，产出灵芝、陨铁、残卷、灵兽蛋或死鱼。</p>
+            <div class="tags"><span>投入薪火</span><span>定向凝聚</span><span>产物池</span><span>保底进度</span></div>
+            <button>进入聚宝盆</button>
+          </aside>
+        </div>
+      </section>
+      <section class="mockup" id="screen-3">
+        <header class="mock-head">
+          <div><small>03 / 灵植园</small><h2>一键播种与蕴养</h2></div>
+          <strong>炼气七重</strong>
+        </header>
+        <div class="screen-body">
+          <aside class="side">
+            <b>资源</b>
+            <p>灵气 86,240</p><p>薪火 128</p><p>灵石 3,420</p><p>灵草 96</p>
+          </aside>
+          <main class="scene">
+            <div class="moon"></div>
+            <div class="mist mist-a"></div><div class="mist mist-b"></div>
+            <div class="basin"><i></i><b>灵植园</b></div>
+            <button class="node node-1">速成</button><button class="node node-2">蕴养</button><button class="node node-3">自动灌溉</button><button class="node node-4">变异概率</button>
+          </main>
+          <aside class="detail">
+            <b>一键播种与蕴养</b>
+            <p>种田佬主循环：速成低品质材料，或长期蕴养关键灵植。天气与聚灵阵影响产量。</p>
+            <div class="tags"><span>速成</span><span>蕴养</span><span>自动灌溉</span><span>变异概率</span></div>
+            <button>进入灵植园</button>
+          </aside>
+        </div>
+      </section>
+      <section class="mockup" id="screen-4">
+        <header class="mock-head">
+          <div><small>04 / 灵兽兽栏</small><h2>旅行与护洞</h2></div>
+          <strong>炼气七重</strong>
+        </header>
+        <div class="screen-body">
+          <aside class="side">
+            <b>资源</b>
+            <p>灵气 86,240</p><p>薪火 128</p><p>灵石 3,420</p><p>灵草 96</p>
+          </aside>
+          <main class="scene">
+            <div class="moon"></div>
+            <div class="mist mist-a"></div><div class="mist mist-b"></div>
+            <div class="basin"><i></i><b>灵兽兽栏</b></div>
+            <button class="node node-1">派遣</button><button class="node node-2">保命包</button><button class="node node-3">旅途情报</button><button class="node node-4">宠物机缘</button>
+          </main>
+          <aside class="detail">
+            <b>旅行与护洞</b>
+            <p>灵宠像旅行青蛙一样外出探险，带回情报、资源和特产，也能为洞府提供被动加成。</p>
+            <div class="tags"><span>派遣</span><span>保命包</span><span>旅途情报</span><span>宠物机缘</span></div>
+            <button>进入灵兽兽栏</button>
+          </aside>
+        </div>
+      </section>
+      <section class="mockup" id="screen-5">
+        <header class="mock-head">
+          <div><small>05 / 丹房</small><h2>炼丹与炸炉收益</h2></div>
+          <strong>炼气七重</strong>
+        </header>
+        <div class="screen-body">
+          <aside class="side">
+            <b>资源</b>
+            <p>灵气 86,240</p><p>薪火 128</p><p>灵石 3,420</p><p>灵草 96</p>
+          </aside>
+          <main class="scene">
+            <div class="moon"></div>
+            <div class="mist mist-a"></div><div class="mist mist-b"></div>
+            <div class="basin"><i></i><b>丹房</b></div>
+            <button class="node node-1">丹方</button><button class="node node-2">火候</button><button class="node node-3">批量炼制</button><button class="node node-4">炸炉补偿</button>
+          </main>
+          <aside class="detail">
+            <b>炼丹与炸炉收益</b>
+            <p>炼制破境丹、寿元丹；失败不会空手，废丹可作肥料或毒药。</p>
+            <div class="tags"><span>丹方</span><span>火候</span><span>批量炼制</span><span>炸炉补偿</span></div>
+            <button>进入丹房</button>
+          </aside>
+        </div>
+      </section>
+      <section class="mockup" id="screen-6">
+        <header class="mock-head">
+          <div><small>06 / 阵枢</small><h2>苟道安全感</h2></div>
+          <strong>炼气七重</strong>
+        </header>
+        <div class="screen-body">
+          <aside class="side">
+            <b>资源</b>
+            <p>灵气 86,240</p><p>薪火 128</p><p>灵石 3,420</p><p>灵草 96</p>
+          </aside>
+          <main class="scene">
+            <div class="moon"></div>
+            <div class="mist mist-a"></div><div class="mist mist-b"></div>
+            <div class="basin"><i></i><b>阵枢</b></div>
+            <button class="node node-1">遮蔽</button><button class="node node-2">聚灵</button><button class="node node-3">防御</button><button class="node node-4">自动化</button>
+          </main>
+          <aside class="detail">
+            <b>苟道安全感</b>
+            <p>遮天蔽日阵、小聚灵阵等阵法叠加，玩家在安全与收益之间取舍。</p>
+            <div class="tags"><span>遮蔽</span><span>聚灵</span><span>防御</span><span>自动化</span></div>
+            <button>进入阵枢</button>
+          </aside>
+        </div>
+      </section>
+      <section class="mockup" id="screen-7">
+        <header class="mock-head">
+          <div><small>07 / 藏经阁</small><h2>残卷与流派</h2></div>
+          <strong>炼气七重</strong>
+        </header>
+        <div class="screen-body">
+          <aside class="side">
+            <b>资源</b>
+            <p>灵气 86,240</p><p>薪火 128</p><p>灵石 3,420</p><p>灵草 96</p>
+          </aside>
+          <main class="scene">
+            <div class="moon"></div>
+            <div class="mist mist-a"></div><div class="mist mist-b"></div>
+            <div class="basin"><i></i><b>藏经阁</b></div>
+            <button class="node node-1">残卷拼合</button><button class="node node-2">龟息功</button><button class="node node-3">敛财术</button><button class="node node-4">黄巾力士</button>
+          </main>
+          <aside class="detail">
+            <b>残卷与流派</b>
+            <p>功法残卷拼接成天赋树，形成龟息、敛财、种田、炼丹等苟道流派。</p>
+            <div class="tags"><span>残卷拼合</span><span>龟息功</span><span>敛财术</span><span>黄巾力士</span></div>
+            <button>进入藏经阁</button>
+          </aside>
+        </div>
+      </section>
+      <section class="mockup" id="screen-8">
+        <header class="mock-head">
+          <div><small>08 / 观星台</small><h2>每日宜忌</h2></div>
+          <strong>炼气七重</strong>
+        </header>
+        <div class="screen-body">
+          <aside class="side">
+            <b>资源</b>
+            <p>灵气 86,240</p><p>薪火 128</p><p>灵石 3,420</p><p>灵草 96</p>
+          </aside>
+          <main class="scene">
+            <div class="moon"></div>
+            <div class="mist mist-a"></div><div class="mist mist-b"></div>
+            <div class="basin"><i></i><b>观星台</b></div>
+            <button class="node node-1">今日宜炼丹</button><button class="node node-2">忌出行</button><button class="node node-3">封山闭关</button><button class="node node-4">气运加成</button>
+          </main>
+          <aside class="detail">
+            <b>每日宜忌</b>
+            <p>每天第一件事算一卦；大凶时可封山闭关，大吉时冲炼丹或凝聚。</p>
+            <div class="tags"><span>今日宜炼丹</span><span>忌出行</span><span>封山闭关</span><span>气运加成</span></div>
+            <button>进入观星台</button>
+          </aside>
+        </div>
+      </section>
+      <section class="mockup" id="screen-9">
+        <header class="mock-head">
+          <div><small>09 / 坊市/会客亭</small><h2>不出门知天下</h2></div>
+          <strong>炼气七重</strong>
+        </header>
+        <div class="screen-body">
+          <aside class="side">
+            <b>资源</b>
+            <p>灵气 86,240</p><p>薪火 128</p><p>灵石 3,420</p><p>灵草 96</p>
+          </aside>
+          <main class="scene">
+            <div class="moon"></div>
+            <div class="mist mist-a"></div><div class="mist mist-b"></div>
+            <div class="basin"><i></i><b>坊市/会客亭</b></div>
+            <button class="node node-1">访客</button><button class="node node-2">交易</button><button class="node node-3">飞剑传书</button><button class="node node-4">开阵恐吓</button>
+          </main>
+          <aside class="detail">
+            <b>不出门知天下</b>
+            <p>访客带来交易、八卦、遗址情报，也可能是不怀好意的试探。</p>
+            <div class="tags"><span>访客</span><span>交易</span><span>飞剑传书</span><span>开阵恐吓</span></div>
+            <button>进入坊市/会客亭</button>
+          </aside>
+        </div>
+      </section>
+    </div>
+
+    <section class="notes">
+      <h2>菜单结构建议</h2>
+      <p>主界面不再放普通 Tab，而是洞府建筑地图。一级入口为：聚宝盆、灵植园、丹房、器房、符阁、阵枢、兽栏、藏经阁、观星台、会客亭、坊市、奇遇。当前版本可以先实现聚宝盆、灵植园、丹房、阵枢、观星台五个核心入口，其他入口用“待修复建筑”呈现，既保留世界观，又不把 MVP 做爆。</p>
+    </section>
+  </div>
+</body>
+</html>
