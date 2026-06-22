@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGameApp, resolveWebStaticRoot } from './index';
+import { updateLedger } from './store';
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..', '..', '..');
 
@@ -80,6 +81,73 @@ test('returns cultivation state and supports practice action errors', async () =
     const practiceResponse = await app.inject({ method: 'POST', url: '/api/actions/practice' });
     assert.equal(practiceResponse.statusCode, 400);
     assert.match(practiceResponse.body, /灵气不足/);
+  } finally {
+    await app.close();
+    delete process.env.TOKEN_GAME_DATA_DIR;
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('returns homestead state and runs cultivation world actions', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'token-game-homestead-api-'));
+  process.env.TOKEN_GAME_DATA_DIR = dataDir;
+  const app = await createGameApp({
+    tickIntervalMs: 60_000,
+    tokenTrackerQueuePath: '/tmp/token-game-missing-queue.jsonl',
+    runExternalTrackerSync: false
+  });
+
+  try {
+    const stateResponse = await app.inject({ method: 'GET', url: '/api/state' });
+    const state = JSON.parse(stateResponse.body);
+
+    assert.equal(stateResponse.statusCode, 200);
+    assert.equal(state.player.kindling, 0);
+    assert.equal(state.homestead.spiritBeast.status, 'idle');
+    assert.equal(Array.isArray(state.homestead.logs), true);
+
+    const divinationResponse = await app.inject({ method: 'POST', url: '/api/actions/divination' });
+    const divinationState = JSON.parse(divinationResponse.body);
+
+    assert.equal(divinationResponse.statusCode, 200);
+    assert.equal(typeof divinationState.homestead.omen.fortune, 'string');
+    assert.match(divinationState.homestead.logs[0].title, /今日卦象/);
+
+    updateLedger((ledger) => {
+      ledger.player.kindling = 1;
+      ledger.player.spiritStone = 3;
+    });
+
+    const treasureResponse = await app.inject({
+      method: 'POST',
+      url: '/api/actions/treasure-basin/condense'
+    });
+    const treasureState = JSON.parse(treasureResponse.body);
+
+    assert.equal(treasureResponse.statusCode, 200);
+    assert.equal(treasureState.player.kindling, 0);
+    assert.equal(treasureState.homestead.inventory.length, 1);
+
+    const dispatchResponse = await app.inject({ method: 'POST', url: '/api/actions/beast/dispatch' });
+    const dispatchState = JSON.parse(dispatchResponse.body);
+
+    assert.equal(dispatchResponse.statusCode, 200);
+    assert.equal(dispatchState.homestead.spiritBeast.status, 'traveling');
+
+    updateLedger((ledger) => {
+      ledger.homestead.spiritBeast.returnsAt = '2026-06-22T02:30:00.000Z';
+    });
+
+    const tickResponse = await app.inject({
+      method: 'POST',
+      url: '/api/actions/tick',
+      payload: { now: '2026-06-22T02:31:00.000Z' }
+    });
+    const tickState = JSON.parse(tickResponse.body);
+
+    assert.equal(tickResponse.statusCode, 200);
+    assert.equal(tickState.homestead.spiritBeast.status, 'idle');
+    assert.match(tickState.homestead.logs[0].title, /灵兽归山/);
   } finally {
     await app.close();
     delete process.env.TOKEN_GAME_DATA_DIR;

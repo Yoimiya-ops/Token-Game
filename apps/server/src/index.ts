@@ -4,15 +4,21 @@ import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import {
+  advanceHomestead,
   breakthroughOnce,
+  condenseTreasure,
+  dispatchSpiritBeast,
   ensureLedger,
   farmOnce,
+  type HomesteadState,
   meditateOnce,
   practiceOnce,
   purgeMockEvents,
   readLedger,
+  rollDivination,
   runAlchemy,
-  updateLedger
+  updateLedger,
+  writeLedger
 } from './store';
 import { syncTokenTrackerUsage } from './token-tracker';
 
@@ -28,7 +34,9 @@ type GameStateResponse = {
     cultivation: number;
     totalTokens: number;
     lastFedAt: string | null;
+    kindling: number;
   };
+  homestead: HomesteadState;
   progression: {
     nextPracticeCost: number;
     nextBreakthroughCost: number;
@@ -114,8 +122,24 @@ async function runLedgerAction(action: 'practice' | 'farm' | 'meditate' | 'alche
   return applied;
 }
 
-async function readGameState(): Promise<GameStateResponse> {
+function parseActionNow(value: unknown) {
+  if (typeof value !== 'string') {
+    return new Date();
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function advanceLedgerTo(now = new Date()) {
   const ledger = readLedger();
+  if (advanceHomestead(ledger, now)) {
+    writeLedger(ledger);
+  }
+  return ledger;
+}
+
+async function readGameState(now = new Date()): Promise<GameStateResponse> {
+  const ledger = advanceLedgerTo(now);
   const player = ledger.player;
   const events = ledger.events.slice(0, 12);
 
@@ -130,8 +154,10 @@ async function readGameState(): Promise<GameStateResponse> {
       pills: player.pills,
       cultivation: player.cultivation,
       totalTokens: player.totalTokens,
-      lastFedAt: player.lastFedAt
+      lastFedAt: player.lastFedAt,
+      kindling: player.kindling
     },
+    homestead: ledger.homestead,
     progression: {
       nextPracticeCost: getPracticeCost(player.realmLevel),
       nextBreakthroughCost: getBreakthroughCost(player.realmLevel),
@@ -213,6 +239,48 @@ export async function createGameApp(options: GameAppOptions = {}) {
     return readGameState();
   });
 
+  app.post('/api/actions/divination', async () => {
+    const now = new Date();
+    updateLedger((ledger) => {
+      rollDivination(ledger, now);
+    });
+    return readGameState(now);
+  });
+
+  app.post('/api/actions/treasure-basin/condense', async (_, reply) => {
+    const now = new Date();
+    let applied = false;
+    updateLedger((ledger) => {
+      applied = condenseTreasure(ledger, now) !== null;
+    });
+    if (!applied) {
+      reply.code(400);
+      return { error: '薪火不足，或聚宝盆今日凝物次数已满。' };
+    }
+    return readGameState(now);
+  });
+
+  app.post('/api/actions/beast/dispatch', async (_, reply) => {
+    const now = new Date();
+    let applied = false;
+    updateLedger((ledger) => {
+      applied = dispatchSpiritBeast(ledger, now);
+    });
+    if (!applied) {
+      reply.code(400);
+      return { error: '灵兽尚未归来，或灵石不足。' };
+    }
+    return readGameState(now);
+  });
+
+  app.post('/api/actions/tick', async (request) => {
+    const now = parseActionNow((request.body as { now?: unknown } | null)?.now);
+    updateLedger((ledger) => {
+      advanceHomestead(ledger, now);
+    });
+    return readGameState(now);
+  });
+
   app.get('/', async (_, reply) => {
     return reply.sendFile('index.html');
   });
@@ -227,9 +295,15 @@ export async function createGameApp(options: GameAppOptions = {}) {
     void syncTokenTrackerUsage({
       queuePath: options.tokenTrackerQueuePath,
       runExternalSync: options.runExternalTrackerSync
-    }).catch((error) => {
-      app.log.error(error);
-    });
+    })
+      .then(() => {
+        updateLedger((ledger) => {
+          advanceHomestead(ledger);
+        });
+      })
+      .catch((error) => {
+        app.log.error(error);
+      });
   }, tickIntervalMs);
 
   app.addHook('onClose', async () => {

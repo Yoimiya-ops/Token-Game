@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  advanceHomestead,
+  condenseTreasure,
   createCultivationLedger,
+  dispatchSpiritBeast,
   farmOnce,
   meditateOnce,
   practiceOnce,
+  rollDivination,
   runAlchemy
 } from './store';
 
@@ -58,4 +62,41 @@ test('alchemy fails when materials are missing', () => {
 
   assert.equal(runAlchemy(ledger), false);
   assert.equal(ledger.player.pills, 0);
+});
+
+test('rolls divination into homestead state and records a log', () => {
+  const ledger = createCultivationLedger();
+
+  const omen = rollDivination(ledger, new Date('2026-06-22T00:00:00.000Z'));
+
+  assert.equal(omen.fortune, '小吉');
+  assert.deepEqual(omen.favors, ['炼丹', '蕴养', '闭关']);
+  assert.equal(ledger.homestead.omen?.fortune, '小吉');
+  assert.match(ledger.homestead.logs[0].title, /今日卦象/);
+});
+
+test('treasure basin consumes kindling and creates loot', () => {
+  const ledger = createCultivationLedger();
+  ledger.player.kindling = 2;
+
+  const result = condenseTreasure(ledger, new Date('2026-06-22T01:00:00.000Z'));
+
+  assert.equal(result?.name, '百年灵芝');
+  assert.equal(ledger.player.kindling, 1);
+  assert.equal(ledger.homestead.treasureBasin.dailyCondenses, 1);
+  assert.equal(ledger.homestead.inventory[0].name, '百年灵芝');
+});
+
+test('spirit beast expedition completes during homestead advancement', () => {
+  const ledger = createCultivationLedger();
+  ledger.player.spiritStone = 5;
+
+  assert.equal(dispatchSpiritBeast(ledger, new Date('2026-06-22T02:00:00.000Z')), true);
+  assert.equal(ledger.homestead.spiritBeast.status, 'traveling');
+
+  advanceHomestead(ledger, new Date('2026-06-22T02:31:00.000Z'));
+
+  assert.equal(ledger.homestead.spiritBeast.status, 'idle');
+  assert.equal(ledger.player.spiritHerb, 2);
+  assert.match(ledger.homestead.logs[0].title, /灵兽归山/);
 });
