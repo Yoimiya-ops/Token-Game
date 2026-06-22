@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Token Game 修仙 UI C 融合版</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --night: #07100e;
+      --night-2: #111915;
+      --paper: #ead8aa;
+      --paper-deep: #d2b77d;
+      --ink: #241709;
+      --ink-soft: #6f4d24;
+      --jade: #2d6b57;
+      --jade-light: #81c7a7;
+      --gold: #c28a38;
+      --red: #a34d37;
+      --line: rgba(91, 57, 22, .28);
+      --line-bright: rgba(194, 138, 56, .46);
+      --text: #f7f0df;
+      --muted: #b8c5b5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        linear-gradient(135deg, rgba(7,16,14,.98), rgba(17,25,21,.98)),
+        var(--night);
+    }
+    button {
+      min-height: 44px;
+      border: 0;
+      border-radius: 8px;
+      padding: 0 16px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .page {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 22px;
+    }
+    .top-note {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 16px;
+    }
+    .top-note h1 {
+      margin: 4px 0 0;
+      font-size: 30px;
+      letter-spacing: 0;
+    }
+    .top-note p {
+      max-width: 660px;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .eyebrow {
+      color: #e6bd68;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .game-shell {
+      min-height: 760px;
+      display: grid;
+      grid-template-columns: minmax(820px, 1fr) 342px;
+      gap: 16px;
+      padding: 16px;
+      border: 1px solid rgba(230,189,104,.24);
+      border-radius: 8px;
+      background: linear-gradient(135deg, #111810, #22170f 48%, #101511);
+      box-shadow: 0 24px 70px rgba(0,0,0,.34);
+      overflow: hidden;
+    }
+    .scroll-stage {
+      position: relative;
+      min-height: 728px;
+      padding: 28px 34px 26px;
+      border: 1px solid rgba(91,57,22,.42);
+      border-radius: 8px;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(74,44,18,.16), transparent 7%, transparent 93%, rgba(74,44,18,.14)),
+        linear-gradient(180deg, #f0ddb0, #ddc189);
+      box-shadow: inset 0 0 0 5px rgba(255,248,223,.18), inset 0 0 45px rgba(72,42,15,.16);
+      overflow: hidden;
+    }
+    .scroll-stage::before,
+    .scroll-stage::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      width: 18px;
+      height: 100%;
+      background: linear-gradient(90deg, rgba(78,45,16,.26), rgba(255,247,220,.08), rgba(78,45,16,.22));
+    }
+    .scroll-stage::before { left: 0; }
+    .scroll-stage::after { right: 0; }
+    .stage-head {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: start;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(91,57,22,.22);
+    }
+    .stage-head h2 {
+      margin: 4px 0 6px;
+      font-size: 34px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+    .stage-head p {
+      max-width: 560px;
+      margin: 0;
+      color: var(--ink-soft);
+      line-height: 1.55;
+    }
+    .realm-slip {
+      width: 210px;
+      padding: 12px 14px;
+      border: 1px solid rgba(91,57,22,.28);
+      border-radius: 8px;
+      background: rgba(255,250,230,.48);
+    }
+    .realm-slip strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--jade);
+      font-size: 23px;
+    }
+    .progress-line {
+      height: 8px;
+      margin-top: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(91,57,22,.18);
+    }
+    .progress-line i {
+      display: block;
+      width: 62%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--jade), var(--gold));
+    }
+    .ledger-tags {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 16px 0 8px;
+    }
+    .ledger-tag {
+      min-height: 78px;
+      padding: 10px 12px;
+      border: 1px solid rgba(45,107,87,.28);
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(45,107,87,.18), rgba(255,250,230,.34));
+    }
+    .ledger-tag span {
+      display: block;
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .ledger-tag b {
+      display: block;
+      margin-top: 6px;
+      color: var(--jade);
+      font-size: 22px;
+      font-variant-numeric: tabular-nums;
+    }
+    .map-area {
+      position: relative;
+      z-index: 1;
+      min-height: 438px;
+      margin-top: 12px;
+      border: 1px solid rgba(91,57,22,.22);
+      border-radius: 8px;
+      background:
+        linear-gradient(160deg, transparent 25%, rgba(45,107,87,.09) 25% 35%, transparent 35%),
+        rgba(255,250,230,.26);
+      overflow: hidden;
+    }
+    .map-area::before {
+      content: "";
+      position: absolute;
+      left: 6%;
+      right: 6%;
+      bottom: 8%;
+      height: 54%;
+      border-bottom: 2px solid rgba(91,57,22,.2);
+      background:
+        linear-gradient(150deg, transparent 34%, rgba(91,57,22,.18) 34% 35%, transparent 35%),
+        linear-gradient(35deg, transparent 42%, rgba(45,107,87,.12) 42% 44%, transparent 44%);
+      clip-path: polygon(0 70%, 12% 40%, 24% 62%, 40% 28%, 55% 56%, 73% 31%, 100% 66%, 100% 100%, 0 100%);
+    }
+    .route {
+      position: absolute;
+      left: 11%;
+      top: 18%;
+      right: 10%;
+      bottom: 18%;
+      border: 2px dashed rgba(91,57,22,.22);
+      border-radius: 48% 52% 45% 55%;
+    }
+    .ink-node {
+      position: absolute;
+      min-width: 118px;
+      height: 52px;
+      border: 1px solid rgba(91,57,22,.34);
+      border-radius: 8px;
+      color: var(--ink);
+      background: rgba(249,237,204,.86);
+      box-shadow: 0 8px 18px rgba(91,57,22,.12);
+    }
+    .ink-node small {
+      display: block;
+      margin-top: 2px;
+      color: var(--ink-soft);
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .ink-node.is-active {
+      min-width: 166px;
+      height: 86px;
+      color: #f8eac7;
+      background: linear-gradient(180deg, #4c3014, #241709);
+      border-color: rgba(194,138,56,.72);
+      box-shadow: 0 14px 30px rgba(76,48,20,.25);
+    }
+    .ink-node.is-active small { color: #d9ba75; }
+    .n1 { left: 10%; top: 20%; }
+    .n2 { right: 14%; top: 20%; }
+    .n3 { left: 13%; bottom: 20%; }
+    .n4 { right: 13%; bottom: 20%; }
+    .n5 { left: 41%; top: 39%; }
+    .n6 { left: 43%; top: 13%; }
+    .n7 { left: 42%; bottom: 10%; }
+    .bottom-ledger {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .ledger-entry {
+      min-height: 84px;
+      padding: 11px 12px;
+      border: 1px solid rgba(91,57,22,.22);
+      border-radius: 8px;
+      background: rgba(255,250,230,.38);
+    }
+    .ledger-entry b {
+      display: block;
+      color: var(--ink);
+      margin-bottom: 5px;
+    }
+    .ledger-entry p {
+      margin: 0;
+      color: var(--ink-soft);
+      line-height: 1.45;
+      font-size: 13px;
+    }
+    .side-book {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      min-height: 728px;
+    }
+    .book-card {
+      border: 1px solid rgba(230,189,104,.22);
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(28,23,16,.96), rgba(17,17,13,.96));
+      box-shadow: 0 18px 42px rgba(0,0,0,.22);
+      padding: 16px;
+    }
+    .book-card h3 {
+      margin: 4px 0 10px;
+      font-size: 23px;
+      letter-spacing: 0;
+    }
+    .book-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.58;
+    }
+    .divination {
+      border-color: rgba(194,138,56,.38);
+    }
+    .fortune-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+    .fortune-title strong {
+      color: var(--gold);
+      font-size: 24px;
+    }
+    .paper-list {
+      display: grid;
+      gap: 9px;
+      margin-top: 12px;
+    }
+    .paper-item {
+      padding: 11px 12px;
+      border: 1px solid rgba(230,189,104,.18);
+      border-radius: 8px;
+      background: rgba(255,255,255,.04);
+    }
+    .paper-item b {
+      display: flex;
+      justify-content: space-between;
+      color: #f8eac7;
+      font-size: 15px;
+    }
+    .paper-item span {
+      color: var(--gold);
+      font-variant-numeric: tabular-nums;
+    }
+    .paper-item p {
+      margin-top: 5px;
+      font-size: 13px;
+    }
+    .primary-action {
+      width: 100%;
+      color: #241709;
+      background: linear-gradient(135deg, #f2d88f, #d0923f);
+    }
+    .secondary-action {
+      width: 100%;
+      color: #f8eac7;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(230,189,104,.22);
+    }
+    .seal-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .seal-row button { padding: 0 10px; }
+    .activity-log {
+      max-height: 234px;
+      overflow: hidden;
+    }
+    .log-line {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid rgba(230,189,104,.12);
+    }
+    .log-line mark {
+      min-width: 44px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: #f8eac7;
+      background: rgba(163,77,55,.42);
+    }
+    .log-line p { font-size: 13px; }
+    @media (max-width: 980px) {
+      .page { padding: 14px; }
+      .top-note { display: block; }
+      .game-shell { grid-template-columns: 1fr; overflow-x: auto; }
+      .scroll-stage { min-width: 920px; }
+      .side-book { min-width: 342px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="top-note">
+      <div>
+        <span class="eyebrow">方案 C 深化版 / 山门卷轴 + 自然数值</span>
+        <h1>云栖宗洞府总览</h1>
+      </div>
+      <p>数值不再硬塞成现代 HUD，而是藏进卷轴边缘的账签、右侧的札记和底部的宗门账册里。看起来仍是古风洞府图，但能一眼扫到资源、境界、收益、风险和下一步建议。</p>
+    </section>
+
+    <section class="game-shell">
+      <main class="scroll-stage" aria-label="洞府卷轴主界面">
+        <header class="stage-head">
+          <div>
+            <span class="eyebrow" style="color:#7a4a16">破落山门 · 第三日</span>
+            <h2>掌中洞天图</h2>
+            <p>聚宝盆已认主，山门灵脉复苏。今日小吉，宜蕴养、宜炼丹，忌远行。</p>
+          </div>
+          <aside class="realm-slip">
+            <span>当前境界</span>
+            <strong>炼气七重</strong>
+            <div class="progress-line"><i></i></div>
+            <small>破境准备六成二</small>
+          </aside>
+        </header>
+
+        <section class="ledger-tags" aria-label="洞府资源账签">
+          <div class="ledger-tag"><span>灵池余炁</span><b>86,240</b></div>
+          <div class="ledger-tag"><span>薪火可投</span><b>128</b></div>
+          <div class="ledger-tag"><span>库中灵石</span><b>3,420</b></div>
+          <div class="ledger-tag"><span>剩余寿元</span><b>186 年</b></div>
+        </section>
+
+        <section class="map-area" aria-label="洞府建筑地图">
+          <div class="route"></div>
+          <button class="ink-node n1">灵植园<small>三畦可收</small></button>
+          <button class="ink-node n2">丹房<small>炉火稳定</small></button>
+          <button class="ink-node n3">兽栏<small>旅途未归</small></button>
+          <button class="ink-node n4">会客亭<small>商人来访</small></button>
+          <button class="ink-node is-active n5">聚宝盆<small>可凝聚一次</small></button>
+          <button class="ink-node n6">阵枢<small>遮蔽九成</small></button>
+          <button class="ink-node n7">藏经阁<small>残卷二页</small></button>
+        </section>
+
+        <section class="bottom-ledger" aria-label="洞府账册摘要">
+          <div class="ledger-entry"><b>灵植园</b><p>七叶芝进入变异窗口，若蕴养到夜半，品质大概率提升。</p></div>
+          <div class="ledger-entry"><b>丹房</b><p>破境丹材料足够三炉，当前炸炉风险十二分。</p></div>
+          <div class="ledger-entry"><b>灵兽</b><p>青羽鹤携遁地符外出，预计一炷香后归山。</p></div>
+          <div class="ledger-entry"><b>坊市情报</b><p>云游商人带来二阶阵盘，可用灵石议价。</p></div>
+        </section>
+      </main>
+
+      <aside class="side-book" aria-label="洞府札记">
+        <section class="book-card divination">
+          <span class="eyebrow">观星台朱批</span>
+          <div class="fortune-title"><h3>今日卦象</h3><strong>小吉</strong></div>
+          <p>宜炼丹、蕴养、闭门清修。忌远行。若强行派主角外出，奇遇收益下降，遇敌概率上升。</p>
+          <div class="seal-row">
+            <button class="primary-action">封山半日</button>
+            <button class="secondary-action">另起一卦</button>
+          </div>
+        </section>
+
+        <section class="book-card">
+          <span class="eyebrow">当前建筑</span>
+          <h3>聚宝盆</h3>
+          <p>投入薪火后，盆中灵液凝聚万物。当前产物池为二阶，稀有物出现率略受今日卦象加成。</p>
+          <div class="paper-list">
+            <div class="paper-item"><b>凝聚进度 <span>0 / 1</span></b><p>本日尚未投入薪火。</p></div>
+            <div class="paper-item"><b>产物池 <span>二阶</span></b><p>可出灵芝、陨铁、残卷、灵兽蛋。</p></div>
+            <div class="paper-item"><b>保底灵韵 <span>72%</span></b><p>再凝聚数次可触发高阶产物。</p></div>
+          </div>
+          <div style="height:12px"></div>
+          <button class="primary-action">投入薪火凝聚</button>
+        </section>
+
+        <section class="book-card activity-log">
+          <span class="eyebrow">洞府札记</span>
+          <h3>天机记录</h3>
+          <div class="log-line"><mark>炁</mark><p>Token 化灵，灵池新增 1,284 点。</p></div>
+          <div class="log-line"><mark>田</mark><p>灵植园自动灌溉完成，变异率小升。</p></div>
+          <div class="log-line"><mark>客</mark><p>会客亭有云游商人叩门。</p></div>
+          <div class="log-line"><mark>阵</mark><p>遮天蔽日阵运转平稳。</p></div>
+        </section>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>
