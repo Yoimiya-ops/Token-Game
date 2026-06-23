@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { TokenEvent } from '@token-game/shared';
+import { buildingPanelFor, type ActionId, type BuildingId } from './building-panel';
 
 type HomesteadLog = {
   id: string;
@@ -71,19 +72,6 @@ type GameState = {
     queueUpdatedAt: string | null;
   };
 };
-
-type BuildingId = 'treasure' | 'farm' | 'alchemy' | 'beast' | 'practice' | 'meditate' | 'divination' | 'archive';
-
-type ActionId =
-  | 'burst'
-  | 'practice'
-  | 'farm'
-  | 'meditate'
-  | 'alchemy'
-  | 'breakthrough'
-  | 'divination'
-  | 'treasure'
-  | 'beast';
 
 type Building = {
   id: BuildingId;
@@ -234,6 +222,7 @@ function isActionDisabled(action: ActionId | null, state: GameState | null, busy
 export default function App() {
   const [state, setState] = useState<GameState | null>(null);
   const [activeBuilding, setActiveBuilding] = useState<BuildingId>('treasure');
+  const [openPanelBuilding, setOpenPanelBuilding] = useState<BuildingId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<ActionId | null>(null);
   const [transitionCopy, setTransitionCopy] = useState('正在读取洞府天机');
@@ -274,6 +263,8 @@ export default function App() {
   const realmProgress = useMemo(() => progressPercent(state), [state]);
   const activeNode = buildings.find((building) => building.id === activeBuilding) ?? buildings[0];
   const primaryAction = actionForBuilding(activeNode.id);
+  const activePanel = state && openPanelBuilding ? buildingPanelFor(openPanelBuilding, state) : null;
+  const activePanelAction = activePanel?.primaryAction ?? null;
   const recentLogs = state?.homestead.logs.slice(0, 5) ?? [];
   const recentEvents = state?.events.slice(0, 4) ?? [];
   const favorText = state?.homestead.omen?.favors.length ? state.homestead.omen.favors.join('、') : '尚未批注';
@@ -311,6 +302,12 @@ export default function App() {
       setBusyAction(null);
       window.setTimeout(() => setIsTransitioning(false), 460);
     }
+  }
+
+  function openBuildingPanel(building: BuildingId) {
+    setActiveBuilding(building);
+    setOpenPanelBuilding(building);
+    setError(null);
   }
 
   return (
@@ -382,7 +379,7 @@ export default function App() {
               <button
                 className={`ink-node ${building.className} ${building.id === activeBuilding ? 'is-active' : ''}`}
                 key={building.id}
-                onClick={() => setActiveBuilding(building.id)}
+                onClick={() => openBuildingPanel(building.id)}
                 type="button"
               >
                 {building.label}
@@ -418,7 +415,7 @@ export default function App() {
               <button disabled={isActionDisabled('divination', state, busyAction)} onClick={() => void runAction('divination')} type="button">
                 另起一卦
               </button>
-              <button className="secondary-action" disabled={busyAction !== null} onClick={() => setActiveBuilding('divination')} type="button">
+              <button className="secondary-action" disabled={busyAction !== null} onClick={() => openBuildingPanel('divination')} type="button">
                 查看星盘
               </button>
             </div>
@@ -485,6 +482,66 @@ export default function App() {
           </section>
         </aside>
       </section>
+
+      {activePanel ? (
+        <section className="building-drawer-shell" aria-label={`${activePanel.title}二级玩法面板`}>
+          <button
+            aria-label="关闭二级玩法面板"
+            className="drawer-backdrop"
+            onClick={() => setOpenPanelBuilding(null)}
+            type="button"
+          />
+          <aside className="building-drawer" role="dialog" aria-modal="true" aria-labelledby="building-drawer-title">
+            <header className="drawer-head">
+              <div>
+                <span className="eyebrow">{activePanel.eyebrow}</span>
+                <h2 id="building-drawer-title">{activePanel.title}</h2>
+              </div>
+              <button
+                aria-label="关闭"
+                className="drawer-close"
+                onClick={() => setOpenPanelBuilding(null)}
+                type="button"
+              >
+                关闭
+              </button>
+            </header>
+
+            <p className="drawer-description">{activePanel.description}</p>
+
+            <div className="drawer-metrics" aria-label={`${activePanel.title}资源状态`}>
+              {activePanel.metrics.map((metric) => (
+                <div className="drawer-metric" key={metric.label}>
+                  <span>{metric.label}</span>
+                  <b>{metric.value}</b>
+                  <p>{metric.body}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="drawer-entries" aria-label={`${activePanel.title}相关记录`}>
+              {activePanel.entries.map((entry) => (
+                <article className={`drawer-entry ${entry.tone ? `is-${entry.tone}` : ''}`} key={`${entry.title}-${entry.body}`}>
+                  <h3>{entry.title}</h3>
+                  <p>{entry.body}</p>
+                </article>
+              ))}
+            </div>
+
+            {activePanelAction && activePanel.primaryLabel ? (
+              <button
+                className="drawer-primary"
+                disabled={isActionDisabled(activePanelAction, state, busyAction)}
+                onClick={() => void runAction(activePanelAction)}
+                type="button"
+              >
+                {busyAction === activePanelAction ? '运转中' : activePanel.primaryLabel}
+              </button>
+            ) : null}
+            {error ? <p className="error drawer-error">{error}</p> : null}
+          </aside>
+        </section>
+      ) : null}
     </main>
   );
 }
