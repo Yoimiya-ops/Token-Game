@@ -3,7 +3,12 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { loadTokenTrackerEventsFromQueue, syncTokenTrackerEvents } from './token-tracker';
+import {
+  getTokenTrackerSyncStatus,
+  loadTokenTrackerEventsFromQueue,
+  resolveTokenTrackerModule,
+  syncTokenTrackerEvents
+} from './token-tracker';
 import { purgeMockEventsFromLedgerFile } from './store';
 
 test('loads TokenTracker queue rows as normalized token events', () => {
@@ -82,6 +87,24 @@ test('syncs only new TokenTracker bucket deltas into the game ledger', () => {
   assert.equal(afterDelta.player.totalTokens, 120);
   assert.equal(afterDelta.events[0].tokenCount, 50);
   assert.equal(afterDelta.trackerState.bucketTokens['codex|gpt-5.5|2026-06-17T06:00:00.000Z|input'], 120);
+});
+
+test('resolves bundled TokenTracker from the server package dependency tree', () => {
+  const resolved = resolveTokenTrackerModule('tokentracker-cli/src/commands/sync');
+
+  assert.match(resolved, /tokentracker-cli[\\/]+src[\\/]+commands[\\/]+sync\.js$/);
+});
+
+test('reports TokenTracker queue status for diagnostics', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'token-game-token-tracker-status-'));
+  const queuePath = path.join(dir, 'queue.jsonl');
+  writeFileSync(queuePath, '');
+
+  const status = getTokenTrackerSyncStatus(queuePath);
+
+  assert.equal(status.queuePath, queuePath);
+  assert.equal(typeof status.queueUpdatedAt, 'string');
+  assert.equal(status.lastError, null);
 });
 
 test('purges legacy mock events from an existing ledger', () => {

@@ -21,7 +21,7 @@ import {
   updateLedger,
   writeLedger
 } from './store';
-import { syncTokenTrackerUsage } from './token-tracker';
+import { getTokenTrackerSyncStatus, syncTokenTrackerUsage, type TokenTrackerSyncStatus } from './token-tracker';
 
 type GameStateResponse = {
   player: {
@@ -53,6 +53,7 @@ type GameStateResponse = {
     metadata?: Record<string, string | number | boolean>;
     qiGained: number;
   }>;
+  tracker: TokenTrackerSyncStatus;
 };
 
 type ServerOptions = {
@@ -141,7 +142,7 @@ function advanceLedgerTo(now = new Date()) {
   return ledger;
 }
 
-async function readGameState(now = new Date()): Promise<GameStateResponse> {
+async function readGameState(now = new Date(), tokenTrackerQueuePath?: string): Promise<GameStateResponse> {
   const ledger = advanceLedgerTo(now);
   const player = ledger.player;
   const events = ledger.events.slice(0, 12);
@@ -175,7 +176,8 @@ async function readGameState(now = new Date()): Promise<GameStateResponse> {
       occurredAt: event.occurredAt,
       qiGained: event.qiGained,
       metadata: event.metadata
-    }))
+    })),
+    tracker: getTokenTrackerSyncStatus(tokenTrackerQueuePath)
   };
 }
 
@@ -197,7 +199,7 @@ export async function createGameApp(options: GameAppOptions = {}) {
       queuePath: options.tokenTrackerQueuePath,
       runExternalSync: options.runExternalTrackerSync
     });
-    return readGameState();
+    return readGameState(new Date(), options.tokenTrackerQueuePath);
   });
 
   app.post('/api/actions/burst', async () => {
@@ -205,7 +207,7 @@ export async function createGameApp(options: GameAppOptions = {}) {
       queuePath: options.tokenTrackerQueuePath,
       runExternalSync: options.runExternalTrackerSync
     });
-    return readGameState();
+    return readGameState(new Date(), options.tokenTrackerQueuePath);
   });
 
   app.post('/api/actions/practice', async (_, reply) => {

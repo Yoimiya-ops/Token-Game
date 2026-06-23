@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -28,19 +28,39 @@ type SyncOptions = {
   runExternalSync?: boolean;
 };
 
+export type TokenTrackerSyncStatus = {
+  lastAttemptedAt: string | null;
+  lastSucceededAt: string | null;
+  lastError: string | null;
+  lastImportedTokens: number;
+  queuePath: string;
+  queueUpdatedAt: string | null;
+};
+
 const TOKEN_TRACKER_NAME = 'TokenTracker';
 const DEFAULT_SYNC_INTERVAL_MS = 30_000;
 let lastExternalSyncAt = 0;
 let externalSyncInFlight: Promise<void> | null = null;
+const tokenTrackerSyncState: Omit<TokenTrackerSyncStatus, 'queuePath' | 'queueUpdatedAt'> = {
+  lastAttemptedAt: null,
+  lastSucceededAt: null,
+  lastError: null,
+  lastImportedTokens: 0
+};
 
 function createPackageRequire() {
   const packageJsonPaths = [
-    typeof __dirname === 'string' ? path.resolve(__dirname, '..', '..', '..', 'package.json') : '',
+    typeof __dirname === 'string' ? path.resolve(__dirname, '..', 'package.json') : '',
+    path.resolve(process.cwd(), 'apps', 'server', 'package.json'),
     path.resolve(process.cwd(), 'package.json')
   ].filter(Boolean);
 
   const packageJsonPath = packageJsonPaths.find((candidate) => existsSync(candidate)) ?? packageJsonPaths[0];
   return createRequire(packageJsonPath);
+}
+
+export function resolveTokenTrackerModule(modulePath: string) {
+  return createPackageRequire().resolve(modulePath);
 }
 
 function positiveInteger(value: unknown) {
@@ -98,6 +118,26 @@ function eventId(row: QueueRow, kind: TokenEvent['kind'], tokenCount: number) {
 
 export function resolveTokenTrackerQueuePath(home = homedir()) {
   return path.join(home, '.tokentracker', 'tracker', 'queue.jsonl');
+}
+
+function queueUpdatedAt(queuePath: string) {
+  if (!existsSync(queuePath)) {
+    return null;
+  }
+
+  return statSync(queuePath).mtime.toISOString();
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function getTokenTrackerSyncStatus(queuePath = resolveTokenTrackerQueuePath()): TokenTrackerSyncStatus {
+  return {
+    ...tokenTrackerSyncState,
+    queuePath,
+    queueUpdatedAt: queueUpdatedAt(queuePath)
+  };
 }
 
 export function loadTokenTrackerEventsFromQueue(queuePath = resolveTokenTrackerQueuePath()) {
@@ -208,7 +248,8 @@ export async function runTokenTrackerSyncIfNeeded(now = Date.now()) {
 
   if (!externalSyncInFlight) {
     externalSyncInFlight = runTokenTrackerSync()
-      .catch(() => {
+      .catch((error) => {
+        tokenTrackerSyncState.lastError = errorMessage(error);
         // The game can still use the last queue snapshot if TokenTracker is not installed yet.
       })
       .finally(() => {
@@ -221,9 +262,17 @@ export async function runTokenTrackerSyncIfNeeded(now = Date.now()) {
 }
 
 export async function runTokenTrackerSync() {
+  tokenTrackerSyncState.lastAttemptedAt = new Date().toISOString();
   const require = createPackageRequire();
   const { cmdSync } = require('tokentracker-cli/src/commands/sync');
-  await cmdSync(['--auto']);
+  try {
+    await cmdSync(['--auto']);
+    tokenTrackerSyncState.lastSucceededAt = new Date().toISOString();
+    tokenTrackerSyncState.lastError = null;
+  } catch (error) {
+    tokenTrackerSyncState.lastError = errorMessage(error);
+    throw error;
+  }
 }
 
 export async function syncTokenTrackerUsage(options: SyncOptions = {}) {
@@ -231,5 +280,7 @@ export async function syncTokenTrackerUsage(options: SyncOptions = {}) {
     await runTokenTrackerSyncIfNeeded();
   }
 
-  return syncTokenTrackerEvents(options);
+  const imported = syncTokenTrackerEvents(options);
+  tokenTrackerSyncState.lastImportedTokens = imported;
+  return imported;
 }

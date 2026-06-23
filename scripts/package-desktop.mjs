@@ -25,7 +25,7 @@ const localZipDir = path.resolve(cwd, 'work', 'electron-zip-cache');
 const tmpdir = path.resolve(cwd, 'work', 'electron-packager-tmp');
 
 function findCachedElectronZip() {
-  if (platform !== 'darwin' || !fs.existsSync(electronCacheDir)) {
+  if (!fs.existsSync(electronCacheDir)) {
     return undefined;
   }
 
@@ -60,7 +60,51 @@ const electronZipDir = prepareLocalElectronZipDir();
 function copyDirectory(source, destination) {
   fs.rmSync(destination, { recursive: true, force: true });
   fs.mkdirSync(path.dirname(destination), { recursive: true });
-  fs.cpSync(source, destination, { recursive: true });
+  fs.cpSync(source, destination, { recursive: true, verbatimSymlinks: true });
+}
+
+function rewriteAbsoluteWorkspaceSymlinks(appSourceDir) {
+  if (!fs.existsSync(appSourceDir)) {
+    return 0;
+  }
+
+  let rewritten = 0;
+  const stack = [appSourceDir];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const stat = fs.lstatSync(current);
+
+    if (stat.isSymbolicLink()) {
+      const linkTarget = fs.readlinkSync(current);
+      if (!path.isAbsolute(linkTarget)) {
+        continue;
+      }
+
+      const relativeToWorkspace = path.relative(cwd, linkTarget);
+      if (relativeToWorkspace.startsWith('..') || path.isAbsolute(relativeToWorkspace)) {
+        continue;
+      }
+
+      const packagedTarget = path.join(appSourceDir, relativeToWorkspace);
+      const relativePackagedTarget = path.relative(path.dirname(current), packagedTarget);
+      const linkType = fs.statSync(current).isDirectory() ? 'dir' : 'file';
+      fs.unlinkSync(current);
+      fs.symlinkSync(relativePackagedTarget, current, linkType);
+      rewritten += 1;
+      continue;
+    }
+
+    if (!stat.isDirectory()) {
+      continue;
+    }
+
+    for (const entry of fs.readdirSync(current)) {
+      stack.push(path.join(current, entry));
+    }
+  }
+
+  return rewritten;
 }
 
 function copyMacBundle(source, destination) {
@@ -77,6 +121,11 @@ function copyAppSource(destination) {
     }
 
     copyDirectory(path.join(cwd, entry.name), path.join(destination, entry.name));
+  }
+
+  const rewritten = rewriteAbsoluteWorkspaceSymlinks(destination);
+  if (rewritten > 0) {
+    console.log(`Rewrote ${rewritten} workspace symlink(s) inside package source.`);
   }
 }
 
@@ -131,6 +180,29 @@ function packageLocalMacApp() {
   console.log(`Packaged: ${appPath}`);
 }
 
+function packageLocalWindowsApp() {
+  const cachedZip = findCachedElectronZip();
+  if (!cachedZip) {
+    throw new Error(`Cached Electron zip not found: ${electronZipName}`);
+  }
+
+  const appDir = path.join(outDir, `Token Game-win32-${arch}`);
+  const resourcesDir = path.join(appDir, 'resources');
+  const appSourceDir = path.join(resourcesDir, 'app');
+
+  fs.rmSync(appDir, { recursive: true, force: true });
+  fs.mkdirSync(appDir, { recursive: true });
+  execFileSync('unzip', ['-q', cachedZip, '-d', appDir]);
+  const electronExe = path.join(appDir, 'electron.exe');
+  const tokenGameExe = path.join(appDir, 'TokenGame.exe');
+  if (!fs.existsSync(electronExe)) {
+    throw new Error(`Electron template did not contain electron.exe: ${cachedZip}`);
+  }
+  fs.renameSync(electronExe, tokenGameExe);
+  copyAppSource(appSourceDir);
+  console.log(`Packaged: ${appDir}`);
+}
+
 const outDir = path.resolve(cwd, 'outputs', target);
 fs.rmSync(outDir, { recursive: true, force: true });
 fs.rmSync(tmpdir, { recursive: true, force: true });
@@ -150,6 +222,11 @@ async function main() {
 
   if (platform === 'darwin') {
     packageLocalMacApp();
+    return;
+  }
+
+  if (platform === 'win32') {
+    packageLocalWindowsApp();
     return;
   }
 
@@ -176,11 +253,16 @@ async function main() {
 
   console.log(`Packager returned ${appPaths.length} path(s).`);
   for (const appPath of appPaths) {
+    const appSourceDir = path.join(appPath, 'resources', 'app');
+    const rewritten = rewriteAbsoluteWorkspaceSymlinks(appSourceDir);
+    if (rewritten > 0) {
+      console.log(`Rewrote ${rewritten} workspace symlink(s) inside ${appSourceDir}.`);
+    }
     console.log(`Packaged: ${appPath}`);
   }
 }
 
-main().catch((error) => {
+await main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

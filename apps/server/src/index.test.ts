@@ -77,6 +77,9 @@ test('returns cultivation state and supports practice action errors', async () =
     assert.equal(stateResponse.statusCode, 200);
     assert.equal(state.player.realm, '炼气一层');
     assert.equal(typeof state.player.qi, 'number');
+    assert.equal(state.tracker.queuePath, '/tmp/token-game-missing-queue.jsonl');
+    assert.equal(state.tracker.queueUpdatedAt, null);
+    assert.equal(state.tracker.lastError, null);
 
     const practiceResponse = await app.inject({ method: 'POST', url: '/api/actions/practice' });
     assert.equal(practiceResponse.statusCode, 400);

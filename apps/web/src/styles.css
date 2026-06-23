@@ -105,8 +105,28 @@ button:disabled {
 
 .top-actions {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.top-action-buttons {
+  display: flex;
   gap: 10px;
   align-items: center;
+}
+
+.tracker-status {
+  max-width: 360px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.tracker-status.is-error {
+  color: #f0a989;
 }
 
 .ghost-button,
@@ -631,6 +651,11 @@ button:disabled {
 
   .top-actions {
     margin-top: 12px;
+    align-items: flex-start;
+  }
+
+  .tracker-status {
+    text-align: left;
   }
 
   .game-shell {

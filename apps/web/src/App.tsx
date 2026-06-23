@@ -62,6 +62,14 @@ type GameState = {
     passiveIntervalMs: number;
   };
   events: Array<TokenEvent & { qiGained: number }>;
+  tracker: {
+    lastAttemptedAt: string | null;
+    lastSucceededAt: string | null;
+    lastError: string | null;
+    lastImportedTokens: number;
+    queuePath: string;
+    queueUpdatedAt: string | null;
+  };
 };
 
 type BuildingId = 'treasure' | 'farm' | 'alchemy' | 'beast' | 'practice' | 'meditate' | 'divination' | 'archive';
@@ -120,6 +128,22 @@ function formatShortTime(value: string | null | undefined) {
     return '未记录';
   }
   return new Date(value).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function trackerStatusText(state: GameState | null) {
+  if (!state?.tracker) {
+    return '天机尚未入账';
+  }
+  if (state.tracker.lastError) {
+    return `天机同步异常：${state.tracker.lastError}`;
+  }
+  if (state.tracker.lastSucceededAt) {
+    return `天机同步 ${formatShortTime(state.tracker.lastSucceededAt)}，队列 ${formatShortTime(state.tracker.queueUpdatedAt)}`;
+  }
+  if (state.tracker.queueUpdatedAt) {
+    return `读取本地天机 ${formatShortTime(state.tracker.queueUpdatedAt)}`;
+  }
+  return '天机队列尚未生成';
 }
 
 function eventLabel(kind: TokenEvent['kind']) {
@@ -305,17 +329,22 @@ export default function App() {
           <h1>云栖宗洞府总览</h1>
         </div>
         <div className="top-actions">
-          <button disabled={busyAction !== null} onClick={() => void runAction('burst')} type="button">
-            {busyAction === 'burst' ? '读取中' : '读取天机'}
-          </button>
-          <button
-            className="ghost-button"
-            disabled={isActionDisabled('breakthrough', state, busyAction)}
-            onClick={() => void runAction('breakthrough')}
-            type="button"
-          >
-            服丹破境
-          </button>
+          <div className="top-action-buttons">
+            <button disabled={busyAction !== null} onClick={() => void runAction('burst')} type="button">
+              {busyAction === 'burst' ? '读取中' : '读取天机'}
+            </button>
+            <button
+              className="ghost-button"
+              disabled={isActionDisabled('breakthrough', state, busyAction)}
+              onClick={() => void runAction('breakthrough')}
+              type="button"
+            >
+              服丹破境
+            </button>
+          </div>
+          <span className={`tracker-status ${state?.tracker.lastError ? 'is-error' : ''}`}>
+            {trackerStatusText(state)}
+          </span>
         </div>
       </section>
 
