@@ -4,6 +4,7 @@ import {
   getAlchemyYield,
   getPracticeCost,
   normalizeCultivationState,
+  realmNameForLevel,
   tokenEventToQi
 } from '@token-game/shared';
 
@@ -33,4 +34,21 @@ test('normalizes missing cultivation state', () => {
     cultivation: 0,
     currentPage: 'practice'
   });
+});
+
+test('normalizes stale realm labels from the saved realm level', () => {
+  assert.equal(
+    normalizeCultivationState({
+      realm: '筑基后期',
+      realmLevel: 6
+    }).realm,
+    '金丹初期'
+  );
+});
+
+test('continues realm names past Foundation Establishment', () => {
+  assert.equal(realmNameForLevel(5), '筑基后期');
+  assert.equal(realmNameForLevel(6), '金丹初期');
+  assert.equal(realmNameForLevel(8), '金丹后期');
+  assert.equal(realmNameForLevel(9), '元婴初期');
 });

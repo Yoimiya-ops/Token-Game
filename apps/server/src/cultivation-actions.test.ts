@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   advanceHomestead,
+  breakthroughOnce,
   condenseTreasure,
   createCultivationLedger,
   dispatchSpiritBeast,
@@ -61,6 +62,19 @@ test('alchemy fails when materials are missing', () => {
   const ledger = createCultivationLedger();
 
   assert.equal(runAlchemy(ledger), false);
+  assert.equal(ledger.player.pills, 0);
+});
+
+test('breakthrough advances past Foundation Establishment into Golden Core', () => {
+  const ledger = createCultivationLedger();
+  ledger.player.realm = '筑基后期';
+  ledger.player.realmLevel = 5;
+  ledger.player.cultivation = 3200;
+  ledger.player.pills = 1;
+
+  assert.equal(breakthroughOnce(ledger), true);
+  assert.equal(ledger.player.realmLevel, 6);
+  assert.equal(ledger.player.realm, '金丹初期');
   assert.equal(ledger.player.pills, 0);
 });
 

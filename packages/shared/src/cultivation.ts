@@ -11,7 +11,9 @@ export type CultivationState = {
   currentPage: CultivationPage;
 };
 
-const realms = ['炼气一层', '炼气二层', '炼气三层', '筑基初期', '筑基中期', '筑基后期'];
+const qiCondensationStages = ['一层', '二层', '三层'];
+const majorRealms = ['筑基', '金丹', '元婴', '化神', '炼虚', '合体', '大乘', '渡劫'];
+const minorStages = ['初期', '中期', '后期'];
 
 function positiveInteger(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
@@ -22,7 +24,15 @@ function normalizePage(value: unknown): CultivationPage {
 }
 
 export function realmNameForLevel(level: number) {
-  return realms[Math.min(Math.max(0, Math.floor(level)), realms.length - 1)] ?? realms[0];
+  const normalizedLevel = Math.max(0, Math.floor(level));
+  if (normalizedLevel < qiCondensationStages.length) {
+    return `炼气${qiCondensationStages[normalizedLevel]}`;
+  }
+
+  const realmIndex = Math.floor((normalizedLevel - qiCondensationStages.length) / minorStages.length);
+  const stage = minorStages[(normalizedLevel - qiCondensationStages.length) % minorStages.length] ?? minorStages[0];
+  const realm = majorRealms[Math.min(realmIndex, majorRealms.length - 1)] ?? majorRealms[0];
+  return `${realm}${stage}`;
 }
 
 export function tokenEventToQi(tokenCount: number) {
@@ -44,7 +54,7 @@ export function getAlchemyYield(spiritHerb: number, spiritStone: number) {
 export function normalizeCultivationState(value: Partial<CultivationState> | undefined): CultivationState {
   const realmLevel = positiveInteger(value?.realmLevel);
   return {
-    realm: value?.realm ?? realmNameForLevel(realmLevel),
+    realm: realmNameForLevel(realmLevel),
     realmLevel,
     qi: positiveInteger(value?.qi),
     spiritStone: positiveInteger(value?.spiritStone),
