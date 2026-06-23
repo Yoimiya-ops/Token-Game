@@ -154,3 +154,51 @@ test('returns homestead state and runs cultivation world actions', async () => {
     rmSync(dataDir, { recursive: true, force: true });
   }
 });
+
+test('backfills kindling once for ledgers that predate kindling rewards', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'token-game-kindling-backfill-api-'));
+  process.env.TOKEN_GAME_DATA_DIR = dataDir;
+  const app = await createGameApp({
+    tickIntervalMs: 60_000,
+    tokenTrackerQueuePath: '/tmp/token-game-missing-queue.jsonl',
+    runExternalTrackerSync: false
+  });
+
+  try {
+    updateLedger((ledger) => {
+      ledger.player.kindling = 0;
+      ledger.events = [
+        {
+          id: 'tokentracker:legacy:input',
+          source: 'tokentracker',
+          model: 'gpt-5.5',
+          kind: 'input',
+          tokenCount: 1000,
+          occurredAt: '2026-06-19T11:30:00.000Z',
+          qiGained: 10
+        },
+        {
+          id: 'tokentracker:legacy:output',
+          source: 'tokentracker',
+          model: 'gpt-5.5',
+          kind: 'output',
+          tokenCount: 600,
+          occurredAt: '2026-06-19T11:30:00.000Z',
+          qiGained: 6
+        }
+      ];
+    });
+
+    const firstResponse = await app.inject({ method: 'GET', url: '/api/state' });
+    const firstState = JSON.parse(firstResponse.body);
+    assert.equal(firstState.player.kindling, 3);
+
+    const secondResponse = await app.inject({ method: 'GET', url: '/api/state' });
+    const secondState = JSON.parse(secondResponse.body);
+    assert.equal(secondState.player.kindling, 3);
+  } finally {
+    await app.close();
+    delete process.env.TOKEN_GAME_DATA_DIR;
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});

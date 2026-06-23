@@ -17,6 +17,7 @@ export type StoredEvent = TokenEvent & {
 export type TrackerState = {
   bucketTokens: Record<string, number>;
   lastSyncedAt: string | null;
+  kindlingBackfilledAt: string | null;
 };
 
 export type PlayerState = CultivationState & {
@@ -90,7 +91,8 @@ const initialLedger: Ledger = {
   events: [],
   trackerState: {
     bucketTokens: {},
-    lastSyncedAt: null
+    lastSyncedAt: null,
+    kindlingBackfilledAt: null
   },
   homestead: {
     omen: null,
@@ -249,7 +251,11 @@ function normalizeLedger(ledger: Partial<Ledger>): Ledger {
         ledger.trackerState?.bucketTokens && typeof ledger.trackerState.bucketTokens === 'object'
           ? { ...ledger.trackerState.bucketTokens }
           : {},
-      lastSyncedAt: ledger.trackerState?.lastSyncedAt ?? initialLedger.trackerState.lastSyncedAt
+      lastSyncedAt: ledger.trackerState?.lastSyncedAt ?? initialLedger.trackerState.lastSyncedAt,
+      kindlingBackfilledAt:
+        typeof ledger.trackerState?.kindlingBackfilledAt === 'string'
+          ? ledger.trackerState.kindlingBackfilledAt
+          : null
     },
     homestead: normalizeHomestead(ledger.homestead)
   };
@@ -302,6 +308,21 @@ export function applyStoredEvent(ledger: Ledger, event: StoredEvent) {
   ledger.player.kindling += Math.max(1, Math.floor(event.qiGained / 5));
   ledger.player.totalTokens += event.tokenCount;
   ledger.player.lastFedAt = event.occurredAt;
+}
+
+export function estimateKindlingFromEvent(event: StoredEvent) {
+  return event.source === 'tokentracker' && event.qiGained > 0 ? Math.max(1, Math.floor(event.qiGained / 5)) : 0;
+}
+
+export function backfillHistoricalKindling(ledger: Ledger, now = new Date()) {
+  if (ledger.trackerState.kindlingBackfilledAt) {
+    return 0;
+  }
+
+  const kindling = ledger.events.reduce((sum, event) => sum + estimateKindlingFromEvent(event), 0);
+  ledger.player.kindling += kindling;
+  ledger.trackerState.kindlingBackfilledAt = now.toISOString();
+  return kindling;
 }
 
 export function updateLedgerFile(ledgerFilePath: string, mutator: (ledger: Ledger) => void) {

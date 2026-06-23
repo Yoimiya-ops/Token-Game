@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import {
   advanceHomestead,
+  backfillHistoricalKindling,
   breakthroughOnce,
   condenseTreasure,
   dispatchSpiritBeast,
@@ -132,7 +133,9 @@ function parseActionNow(value: unknown) {
 
 function advanceLedgerTo(now = new Date()) {
   const ledger = readLedger();
-  if (advanceHomestead(ledger, now)) {
+  const backfilled = backfillHistoricalKindling(ledger, now);
+  const advanced = advanceHomestead(ledger, now);
+  if (backfilled > 0 || advanced) {
     writeLedger(ledger);
   }
   return ledger;
@@ -298,6 +301,7 @@ export async function createGameApp(options: GameAppOptions = {}) {
     })
       .then(() => {
         updateLedger((ledger) => {
+          backfillHistoricalKindling(ledger);
           advanceHomestead(ledger);
         });
       })
