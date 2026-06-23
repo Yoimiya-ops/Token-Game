@@ -31,7 +31,7 @@ async function createGameWindow(app) {
     minWidth: 1100,
     minHeight: 760,
     backgroundColor: '#0d1117',
-    title: 'Feed the Kitty with Tokens',
+    title: 'Token Game 修仙洞府',
     autoHideMenuBar: true
   });
 
