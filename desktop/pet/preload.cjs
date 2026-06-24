@@ -8,5 +8,7 @@ contextBridge.exposeInMainWorld('tokenPet', {
   },
   openGame: () => ipcRenderer.send('pet:open-game'),
   showContextMenu: () => ipcRenderer.send('pet:show-context-menu'),
-  saveBounds: () => ipcRenderer.send('pet:save-bounds')
+  saveBounds: () => ipcRenderer.send('pet:save-bounds'),
+  dragTo: (x, y) => ipcRenderer.send('pet:drag-to', { x, y }),
+  endDrag: () => ipcRenderer.send('pet:end-drag')
 });

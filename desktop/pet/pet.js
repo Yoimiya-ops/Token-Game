@@ -3,8 +3,11 @@ const cat = document.getElementById('cat');
 const bubble = document.getElementById('bubble');
 const petImage = document.getElementById('pet-image');
 const messages = ['喵，Token 消化中...', '+1 摸摸', '双击我进入游戏', '今天也要好好喂猫'];
+const DRAG_THRESHOLD_PX = 4;
 let clickTimer;
 let messageIndex = 0;
+let dragOrigin = null;
+let justDragged = false;
 
 function applyAsset(asset) {
   const isImage = asset?.kind === 'image';
@@ -32,6 +35,10 @@ function showInteraction() {
 }
 
 pet.addEventListener('click', () => {
+  if (justDragged) {
+    justDragged = false;
+    return;
+  }
   if (clickTimer) {
     window.clearTimeout(clickTimer);
     clickTimer = undefined;
@@ -50,6 +57,49 @@ window.addEventListener('contextmenu', (event) => {
   window.tokenPet.showContextMenu();
 });
 
-window.addEventListener('mouseup', () => {
+function endDrag(event) {
+  if (!dragOrigin || dragOrigin.pointerId !== event.pointerId) {
+    return;
+  }
+  if (dragOrigin.dragging) {
+    justDragged = true;
+    window.tokenPet.endDrag();
+  }
+  dragOrigin = null;
   window.tokenPet.saveBounds();
+}
+
+pet.addEventListener('pointerdown', (event) => {
+  if (event.button !== 0) {
+    return;
+  }
+  pet.setPointerCapture(event.pointerId);
+  dragOrigin = {
+    pointerId: event.pointerId,
+    mouseScreenX: event.screenX,
+    mouseScreenY: event.screenY,
+    windowStartX: window.screenX,
+    windowStartY: window.screenY,
+    dragging: false
+  };
 });
+
+pet.addEventListener('pointermove', (event) => {
+  if (!dragOrigin || dragOrigin.pointerId !== event.pointerId) {
+    return;
+  }
+  if (!dragOrigin.dragging) {
+    const dx = event.screenX - dragOrigin.mouseScreenX;
+    const dy = event.screenY - dragOrigin.mouseScreenY;
+    if (dx * dx + dy * dy <= DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) {
+      return;
+    }
+    dragOrigin.dragging = true;
+  }
+  const dx = event.screenX - dragOrigin.mouseScreenX;
+  const dy = event.screenY - dragOrigin.mouseScreenY;
+  window.tokenPet.dragTo(dragOrigin.windowStartX + dx, dragOrigin.windowStartY + dy);
+});
+
+pet.addEventListener('pointerup', endDrag);
+pet.addEventListener('pointercancel', endDrag);

@@ -165,6 +165,23 @@ function registerPetIpc(app, showPetContextMenu) {
     persistPetWindowState(app);
   });
 
+  ipcMain.on('pet:drag-to', (event, payload) => {
+    if (!petWindow || petWindow.isDestroyed()) {
+      return;
+    }
+    const x = Number(payload?.x);
+    const y = Number(payload?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return;
+    }
+    petWindow.setPosition(Math.round(x), Math.round(y));
+  });
+
+  ipcMain.on('pet:end-drag', () => {
+    // Window position is already updated by pet:drag-to; this is a no-op
+    // hook in case future work needs to reset transient drag state.
+  });
+
   ipcMain.on('pet:interact', () => {
     persistPetWindowState(app);
   });
