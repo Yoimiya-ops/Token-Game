@@ -22,6 +22,10 @@ import {
   writeLedger
 } from './store';
 import { getTokenTrackerSyncStatus, syncTokenTrackerUsage, type TokenTrackerSyncStatus } from './token-tracker';
+import { createSessionRoutes } from './session-receiver/routes';
+import { readSessionStore, resolveSessionStorePath } from './session-receiver';
+import { SessionDriver, liveSessionCount } from './token-tracker/session-driver';
+import { getDefaultProviders } from './token-tracker/providers';
 
 type GameStateResponse = {
   player: {
@@ -67,7 +71,21 @@ type GameAppOptions = {
   staticRoot?: string;
   tickIntervalMs?: number;
   tokenTrackerQueuePath?: string;
+  /** Legacy local tracker scan. Defaults to false now that SessionDriver
+   *  owns live token ingestion; tests can still opt in explicitly. */
   runExternalTrackerSync?: boolean;
+  /** Override the on-disk path for the session-receiver store. Tests
+   *  pass a tmpdir so each test gets a fresh empty store. */
+  sessionStorePath?: string;
+  /** When true (default), start the SessionDriver so the server runs
+   *  its own 60s ticks on every open session. Tests can pass false
+   *  to keep the driver inert. */
+  enableSessionDriver?: boolean;
+  /** Tick interval in ms. Defaults to 60s. Tests typically pass 50-100. */
+  sessionDriverTickIntervalMs?: number;
+  /** Injected SessionDriver (tests). When provided, the constructor
+   *  uses this instance instead of building a new one. */
+  sessionDriver?: SessionDriver;
 };
 
 const DEFAULT_TICK_INTERVAL_MS = 30_000;
@@ -194,10 +212,55 @@ export async function createGameApp(options: GameAppOptions = {}) {
 
   app.get('/health', async () => ({ ok: true }));
 
+  // ──────────────────────────────────────────────────────────────────
+  // Session driver: server-side 60s ticker on every open session.
+  // Built first so the routes below can hand off the
+  // "manual-refresh" / "/active" endpoints to it.
+  // ──────────────────────────────────────────────────────────────────
+  const sessionStorePath = options.sessionStorePath;
+  let sessionDriver: SessionDriver | null = null;
+  if (options.enableSessionDriver !== false) {
+    sessionDriver =
+      options.sessionDriver ??
+      new SessionDriver(sessionStorePath ?? resolveSessionStorePath(), {
+        providers: getDefaultProviders(),
+        tickIntervalMs: options.sessionDriverTickIntervalMs
+      });
+    for (const device of Object.values(readSessionStore(sessionStorePath).devices)) {
+      if (device.openSession) {
+        const r = await sessionDriver.reattach(device.deviceKey);
+        if (r.ok) {
+          app.log.info(
+            { deviceKey: device.deviceKey, sessionId: r.session.sessionId },
+            'session-driver reattached to pre-existing session'
+          );
+        }
+      }
+    }
+    app.addHook('onClose', async () => {
+      sessionDriver?.shutdown();
+    });
+    app.log.info({ liveSessions: liveSessionCount(sessionDriver) }, 'session-driver started');
+  }
+
+  // ──────────────────────────────────────────────────────────────────
+  // Session-based receiver. This is the only live token-ingestion HTTP
+  // path now; the old trust-batch receiver has been removed.
+  // ──────────────────────────────────────────────────────────────────
+  await createSessionRoutes(app, {
+    storePath: options.sessionStorePath,
+    sessionDriver: sessionDriver ?? undefined
+  });
+
+  app.get('/health/session-driver', async () => ({
+    ok: true,
+    liveSessions: sessionDriver ? liveSessionCount(sessionDriver) : 0
+  }));
+
   app.get('/api/state', async () => {
     await syncTokenTrackerUsage({
       queuePath: options.tokenTrackerQueuePath,
-      runExternalSync: options.runExternalTrackerSync
+      runExternalSync: options.runExternalTrackerSync ?? false
     });
     return readGameState(new Date(), options.tokenTrackerQueuePath);
   });
@@ -205,7 +268,7 @@ export async function createGameApp(options: GameAppOptions = {}) {
   app.post('/api/actions/burst', async () => {
     await syncTokenTrackerUsage({
       queuePath: options.tokenTrackerQueuePath,
-      runExternalSync: options.runExternalTrackerSync
+      runExternalSync: options.runExternalTrackerSync ?? false
     });
     return readGameState(new Date(), options.tokenTrackerQueuePath);
   });
@@ -291,15 +354,16 @@ export async function createGameApp(options: GameAppOptions = {}) {
   });
 
   await ensurePlayerState();
+
   await syncTokenTrackerUsage({
     queuePath: options.tokenTrackerQueuePath,
-    runExternalSync: options.runExternalTrackerSync
+    runExternalSync: options.runExternalTrackerSync ?? false
   });
 
   const interval = setInterval(() => {
     void syncTokenTrackerUsage({
       queuePath: options.tokenTrackerQueuePath,
-      runExternalSync: options.runExternalTrackerSync
+      runExternalSync: options.runExternalTrackerSync ?? false
     })
       .then(() => {
         updateLedger((ledger) => {
@@ -307,7 +371,7 @@ export async function createGameApp(options: GameAppOptions = {}) {
           advanceHomestead(ledger);
         });
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         app.log.error(error);
       });
   }, tickIntervalMs);

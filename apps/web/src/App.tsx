@@ -227,6 +227,12 @@ export default function App() {
   const [busyAction, setBusyAction] = useState<ActionId | null>(null);
   const [transitionCopy, setTransitionCopy] = useState('正在读取洞府天机');
   const [isTransitioning, setIsTransitioning] = useState(true);
+  const [refreshInProgress, setRefreshInProgress] = useState(false);
+  const [refreshFeedback, setRefreshFeedback] = useState<{
+    kind: 'ok' | 'rate_limited' | 'error';
+    text: string;
+    at: number;
+  } | null>(null);
   const apiBase = '';
 
   useEffect(() => {
@@ -304,6 +310,64 @@ export default function App() {
     }
   }
 
+  /** Server-side "立刻入账" — bypasses the client-driven signed-tick
+   *  flow because the web dashboard doesn't track cursor state. The
+   *  server's SessionDriver does the work in-process. */
+  async function manualRefresh() {
+    if (refreshInProgress) return;
+    setRefreshInProgress(true);
+    try {
+      const response = await fetch(`${apiBase}/v1/sessions/active/manual-refresh`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      if (response.status === 429) {
+        const body = (await response.json().catch(() => ({}))) as { retryAfterMs?: number };
+        const retrySec = Math.ceil((body.retryAfterMs ?? 5_000) / 1000);
+        setRefreshFeedback({
+          kind: 'rate_limited',
+          text: `手太快了，${retrySec} 秒后再点`,
+          at: Date.now()
+        });
+        return;
+      }
+      if (!response.ok) {
+        setRefreshFeedback({
+          kind: 'error',
+          text: `刷新失败 (HTTP ${response.status})`,
+          at: Date.now()
+        });
+        return;
+      }
+      const body = (await response.json()) as {
+        qiGained: number;
+        eventsEmitted: number;
+        totalTokens: number;
+        triggersAppliedBySource: Record<string, number>;
+      };
+      setRefreshFeedback({
+        kind: 'ok',
+        text: `已入账 +${body.qiGained} 灵气 · 共 ${body.totalTokens.toLocaleString()} token`,
+        at: Date.now()
+      });
+      // Refresh the dashboard data so the "入账 Token" tag visibly ticks up.
+      const stateResp = await fetch(`${apiBase}/api/state`);
+      if (stateResp.ok) {
+        const data = (await stateResp.json()) as GameState;
+        setState(data);
+      }
+    } catch (err) {
+      setRefreshFeedback({
+        kind: 'error',
+        text: `刷新失败:${err instanceof Error ? err.message : String(err)}`,
+        at: Date.now()
+      });
+    } finally {
+      setRefreshInProgress(false);
+    }
+  }
+
   function openBuildingPanel(building: BuildingId) {
     setActiveBuilding(building);
     setOpenPanelBuilding(building);
@@ -320,6 +384,17 @@ export default function App() {
         </div>
       ) : null}
 
+      {refreshFeedback ? (
+        <div
+          className={`refresh-toast is-${refreshFeedback.kind}`}
+          role="status"
+          aria-live="polite"
+          key={refreshFeedback.at}
+        >
+          {refreshFeedback.text}
+        </div>
+      ) : null}
+
       <section className="top-note">
         <div>
           <span className="eyebrow">Token Game / 破落山门</span>
@@ -329,6 +404,15 @@ export default function App() {
           <div className="top-action-buttons">
             <button disabled={busyAction !== null} onClick={() => void runAction('burst')} type="button">
               {busyAction === 'burst' ? '读取中' : '读取天机'}
+            </button>
+            <button
+              className="ghost-button"
+              disabled={refreshInProgress}
+              onClick={() => void manualRefresh()}
+              type="button"
+              aria-label="立刻入账 token"
+            >
+              {refreshInProgress ? '入账中…' : '立刻入账'}
             </button>
             <button
               className="ghost-button"

@@ -990,3 +990,34 @@ button:disabled {
     transition-duration: 1ms !important;
   }
 }
+
+.refresh-toast {
+  position: fixed;
+  z-index: 30;
+  top: 84px;
+  right: 32px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #f5f1e6;
+  background: rgba(45, 107, 87, 0.92);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  animation: refresh-toast-pop 2.4s ease forwards;
+  pointer-events: none;
+}
+
+.refresh-toast.is-rate_limited {
+  background: rgba(178, 110, 58, 0.95);
+}
+
+.refresh-toast.is-error {
+  background: rgba(170, 60, 60, 0.95);
+}
+
+@keyframes refresh-toast-pop {
+  0% { transform: translateY(-12px); opacity: 0; }
+  10% { transform: translateY(0); opacity: 1; }
+  85% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-6px); opacity: 0; }
+}

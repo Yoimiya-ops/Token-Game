@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('tokenPet', {
   onAssetChanged: (callback) => {
     ipcRenderer.on('pet:asset-changed', (_, asset) => callback(asset));
   },
+  onTokenRefreshed: (callback) => {
+    ipcRenderer.on('pet:token-refreshed', (_, result) => callback(result));
+  },
   openGame: () => ipcRenderer.send('pet:open-game'),
   showContextMenu: () => ipcRenderer.send('pet:show-context-menu'),
   saveBounds: () => ipcRenderer.send('pet:save-bounds'),

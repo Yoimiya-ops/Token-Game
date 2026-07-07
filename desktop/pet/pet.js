@@ -20,6 +20,29 @@ function applyAsset(asset) {
 window.tokenPet.getAsset().then(applyAsset);
 window.tokenPet.onAssetChanged(applyAsset);
 
+// React to "立刻入账" results emitted by the main process. We
+// hijack the existing #bubble for the feedback so we don't have
+// to add a new DOM node.
+window.tokenPet.onTokenRefreshed((result) => {
+  if (!result) return;
+  let text;
+  if (result.ok) {
+    const qi = result.qiGained ?? 0;
+    const tokens = result.totalTokens ?? 0;
+    text = `已入账 +${qi} 灵气 · 共 ${tokens.toLocaleString()} token`;
+  } else if (result.reason === 'rate_limited') {
+    const retry = Math.ceil((result.retryAfterMs ?? 5000) / 1000);
+    text = `手太快了，${retry} 秒后再点`;
+  } else {
+    text = result.message || '刷新失败';
+  }
+  bubble.textContent = text;
+  bubble.classList.add('is-visible');
+  window.setTimeout(() => {
+    bubble.classList.remove('is-visible');
+  }, 2400);
+});
+
 function showInteraction() {
   window.tokenPet.interact();
   const activePet = pet.dataset.petKind === 'image' ? petImage : cat;

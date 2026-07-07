@@ -18,6 +18,13 @@ function createTrayMenu(app, actions) {
     { label: '打开游戏', click: actions.openGame },
     { type: 'separator' },
     {
+      label: '立刻入账',
+      click: () => {
+        void actions.refreshTokens();
+      }
+    },
+    { type: 'separator' },
+    {
       label: '退出',
       click: () => {
         app.isQuitting = true;
@@ -58,6 +65,13 @@ function createPetContextMenu(app, actions) {
       click: actions.toggleAlwaysOnTop
     },
     { label: '隐藏到托盘', click: actions.hidePet },
+    { type: 'separator' },
+    {
+      label: '刷新 token',
+      click: () => {
+        void actions.refreshTokens();
+      }
+    },
     { type: 'separator' },
     {
       label: '退出',

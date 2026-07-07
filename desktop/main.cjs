@@ -16,6 +16,9 @@ const { createPetContextMenu, createTray } = require('./tray.cjs');
 const { importCustomPetAsset } = require('./custom-pet-assets.cjs');
 const { defaultPetAssetId, deletePetAsset, renamePetAsset } = require('./pet-assets.cjs');
 const { promptForText } = require('./prompt-window.cjs');
+const { createGameSession } = require('./game-session.cjs');
+
+let gameSession = null;
 
 async function openGame() {
   await createGameWindow(app);
@@ -82,6 +85,14 @@ async function deleteActivePetAsset() {
 async function boot() {
   await startEmbeddedServer(app);
 
+  gameSession = createGameSession(app);
+  void gameSession.start().catch((err) => {
+    dialog.showErrorBox(
+      'Token Game session',
+      err instanceof Error ? err.message : String(err)
+    );
+  });
+
   const actions = {
     restorePet: () => restorePetWindow(),
     openGame: () => {
@@ -100,7 +111,8 @@ async function boot() {
     },
     deleteActivePetAsset: () => {
       void deleteActivePetAsset();
-    }
+    },
+    refreshTokens: async () => gameSession.refreshTokens()
   };
 
   createTray(app, actions);
@@ -130,5 +142,12 @@ app.on('window-all-closed', (event) => {
 });
 
 app.on('will-quit', async () => {
+  // Best-effort close. The server will sweep the session on the next
+  // idle check anyway if this fails (network glitch, process killed).
+  try {
+    await gameSession?.stop();
+  } catch {
+    // ignore
+  }
   await stopEmbeddedServer();
 });
