@@ -1,268 +1,59 @@
-import packager from '@electron/packager';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const cwd = process.cwd();
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const require = createRequire(path.join(root, 'package.json'));
 const target = process.argv[2] ?? 'current';
-const platformMap = {
-  mac: 'darwin',
-  win: 'win32',
-  current: process.platform
+const platforms = { current: process.platform, win: 'win32', mac: 'darwin' };
+const platform = platforms[target];
+if (!platform) throw new Error('Unknown package target');
+if (platform !== process.platform) throw new Error('请在目标操作系统上构建发行包，确保携带对应的 Electron 运行时。');
+const arch = process.arch;
+const executable = require('electron');
+const electronDist = path.dirname(executable);
+const outDir = path.join(root, 'outputs', target);
+const appDir = path.join(outDir, `TokenGame-${platform}-${arch}`);
+fs.mkdirSync(outDir, { recursive: true });
+if (path.dirname(appDir) !== outDir || !outDir.startsWith(path.join(root, 'outputs') + path.sep)) throw new Error('Invalid package destination');
+if (fs.existsSync(appDir)) fs.rmSync(appDir, { recursive: true, force: true });
+fs.mkdirSync(appDir);
+
+const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+let resources;
+if (platform === 'darwin') {
+  const bundle = path.join(appDir, 'TokenGame.app');
+  fs.cpSync(path.join(electronDist, 'Electron.app'), bundle, { recursive: true });
+  resources = path.join(bundle, 'Contents', 'Resources');
+} else {
+  fs.cpSync(electronDist, appDir, { recursive: true });
+  if (platform === 'win32') fs.renameSync(path.join(appDir, 'electron.exe'), path.join(appDir, 'TokenGame.exe'));
+  resources = path.join(appDir, 'resources');
+}
+const source = path.join(resources, 'app');
+fs.mkdirSync(source, { recursive: true });
+const copy = (relative) => {
+  const destination = path.join(source, relative);
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.cpSync(path.join(root, relative), destination, { recursive: true, dereference: true });
 };
-
-const platform = platformMap[target];
-if (!platform) {
-  throw new Error(`Unknown desktop package target: ${target}`);
+for (const file of ['desktop/main.cjs', 'desktop/windows.cjs', 'desktop/server.cjs', 'desktop/tray.cjs', 'desktop/window-state.cjs',
+  'desktop/pet/index.html', 'desktop/pet/styles.css', 'desktop/pet/scene.css', 'desktop/pet/pet.js', 'desktop/pet/preload.cjs',
+  'desktop/pet/assets/processed/jade-basin.webp', 'desktop/pet/assets/processed/jade-basin-icon.png',
+  'apps/server/dist/collector.cjs', 'apps/web/dist', 'apps/web/src/lucide-LICENSE']) copy(file);
+fs.writeFileSync(path.join(source, 'package.json'), JSON.stringify({
+  name: manifest.name, version: manifest.version, main: manifest.main, private: true
+}, null, 2));
+fs.writeFileSync(path.join(appDir, 'README.txt'), '聚宝盆 / Token Game\r\n\r\n完整解压后启动 TokenGame.exe。请保留全部同目录文件。\r\n内置运行环境，无需 Node.js、pnpm 或 TokenTracker。\r\n正常使用本机 Codex 后，新增 Token 会自动进入聚宝盆。收取后可用于祈器；武器可分解为玄铁并兑换指定武器。\r\n左键单击收取 Token；右键或左键双击打开收获与武器窗口。托盘可隐藏、显示与退出。\r\n');
+if (fs.existsSync(path.join(resources, 'default_app.asar'))) fs.unlinkSync(path.join(resources, 'default_app.asar'));
+console.log(`Packaged: ${appDir}`);
+if (platform === 'win32') {
+  const zip = path.join(outDir, `TokenGame-win32-${arch}.zip`);
+  const quote = value => "'" + value.replaceAll("'", "''") + "'";
+  if (fs.existsSync(zip)) fs.unlinkSync(zip);
+  execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+    `Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory(${quote(appDir)}, ${quote(zip)}, [System.IO.Compression.CompressionLevel]::Optimal, $true)`], { windowsHide: true, stdio: 'inherit' });
+  console.log(`Archive: ${zip}`);
 }
-
-const arch = target === 'win' ? 'x64' : process.arch;
-const electronCacheDir = path.join(os.homedir(), 'Library', 'Caches', 'electron');
-const electronVersion = '37.10.3';
-const electronZipName = `electron-v${electronVersion}-${platform}-${arch}.zip`;
-const localZipDir = path.resolve(cwd, 'work', 'electron-zip-cache');
-const tmpdir = path.resolve(cwd, 'work', 'electron-packager-tmp');
-
-function findCachedElectronZip() {
-  if (!fs.existsSync(electronCacheDir)) {
-    return undefined;
-  }
-
-  const entries = fs.readdirSync(electronCacheDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (!entry.isDirectory()) {
-      continue;
-    }
-
-    const candidate = path.join(electronCacheDir, entry.name, electronZipName);
-    if (fs.existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  return undefined;
-}
-
-function prepareLocalElectronZipDir() {
-  const cachedZip = findCachedElectronZip();
-  if (!cachedZip) {
-    return undefined;
-  }
-
-  fs.mkdirSync(localZipDir, { recursive: true });
-  fs.copyFileSync(cachedZip, path.join(localZipDir, electronZipName));
-  return localZipDir;
-}
-
-const electronZipDir = prepareLocalElectronZipDir();
-
-function copyDirectory(source, destination) {
-  fs.rmSync(destination, { recursive: true, force: true });
-  fs.mkdirSync(path.dirname(destination), { recursive: true });
-  fs.cpSync(source, destination, { recursive: true, verbatimSymlinks: true });
-}
-
-function rewriteAbsoluteWorkspaceSymlinks(appSourceDir) {
-  if (!fs.existsSync(appSourceDir)) {
-    return 0;
-  }
-
-  let rewritten = 0;
-  const stack = [appSourceDir];
-
-  while (stack.length > 0) {
-    const current = stack.pop();
-    const stat = fs.lstatSync(current);
-
-    if (stat.isSymbolicLink()) {
-      const linkTarget = fs.readlinkSync(current);
-      if (!path.isAbsolute(linkTarget)) {
-        continue;
-      }
-
-      const relativeToWorkspace = path.relative(cwd, linkTarget);
-      if (relativeToWorkspace.startsWith('..') || path.isAbsolute(relativeToWorkspace)) {
-        continue;
-      }
-
-      const packagedTarget = path.join(appSourceDir, relativeToWorkspace);
-      const relativePackagedTarget = path.relative(path.dirname(current), packagedTarget);
-      const linkType = fs.statSync(current).isDirectory() ? 'dir' : 'file';
-      fs.unlinkSync(current);
-      fs.symlinkSync(relativePackagedTarget, current, linkType);
-      rewritten += 1;
-      continue;
-    }
-
-    if (!stat.isDirectory()) {
-      continue;
-    }
-
-    for (const entry of fs.readdirSync(current)) {
-      stack.push(path.join(current, entry));
-    }
-  }
-
-  return rewritten;
-}
-
-function copyMacBundle(source, destination) {
-  fs.rmSync(destination, { recursive: true, force: true });
-  fs.mkdirSync(path.dirname(destination), { recursive: true });
-  execFileSync('ditto', [source, destination]);
-}
-
-function copyAppSource(destination) {
-  fs.mkdirSync(destination, { recursive: true });
-  for (const entry of fs.readdirSync(cwd, { withFileTypes: true })) {
-    if (['.git', '.superpowers', 'docs', 'outputs', 'prisma', 'work'].includes(entry.name)) {
-      continue;
-    }
-
-    copyDirectory(path.join(cwd, entry.name), path.join(destination, entry.name));
-  }
-
-  const rewritten = rewriteAbsoluteWorkspaceSymlinks(destination);
-  if (rewritten > 0) {
-    console.log(`Rewrote ${rewritten} workspace symlink(s) inside package source.`);
-  }
-}
-
-function packageLocalMacApp() {
-  const electronApp = path.join(
-    cwd,
-    'node_modules',
-    '.pnpm',
-    `electron@${electronVersion}`,
-    'node_modules',
-    'electron',
-    'dist',
-    'Electron.app'
-  );
-  if (!fs.existsSync(electronApp)) {
-    throw new Error(`Local Electron.app not found: ${electronApp}`);
-  }
-
-  const appDir = path.join(outDir, `Token Game-darwin-${arch}`);
-  const appPath = path.join(appDir, 'Token Game.app');
-  const resourcesDir = path.join(appPath, 'Contents', 'Resources');
-  const appSourceDir = path.join(resourcesDir, 'app');
-  copyMacBundle(electronApp, appPath);
-  copyAppSource(appSourceDir);
-  const plistPath = path.join(appPath, 'Contents', 'Info.plist');
-  fs.writeFileSync(
-    plistPath,
-    `<?xml version="1.0" encoding="UTF-8"?>\n` +
-      `<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n` +
-      `<plist version="1.0">\n` +
-      `<dict>\n` +
-      `  <key>CFBundleExecutable</key>\n` +
-      `  <string>Electron</string>\n` +
-      `  <key>CFBundleIdentifier</key>\n` +
-      `  <string>local.token-game.desktop</string>\n` +
-      `  <key>CFBundleName</key>\n` +
-      `  <string>Token Game</string>\n` +
-      `  <key>CFBundleDisplayName</key>\n` +
-      `  <string>Token Game</string>\n` +
-      `  <key>CFBundlePackageType</key>\n` +
-      `  <string>APPL</string>\n` +
-      `  <key>CFBundleShortVersionString</key>\n` +
-      `  <string>0.1.0</string>\n` +
-      `  <key>CFBundleVersion</key>\n` +
-      `  <string>0.1.0</string>\n` +
-      `  <key>LSMinimumSystemVersion</key>\n` +
-      `  <string>10.13</string>\n` +
-      `</dict>\n` +
-      `</plist>\n`
-  );
-  execFileSync('plutil', ['-lint', plistPath]);
-  console.log(`Packaged: ${appPath}`);
-}
-
-function packageLocalWindowsApp() {
-  const cachedZip = findCachedElectronZip();
-  if (!cachedZip) {
-    throw new Error(`Cached Electron zip not found: ${electronZipName}`);
-  }
-
-  const appDir = path.join(outDir, `Token Game-win32-${arch}`);
-  const resourcesDir = path.join(appDir, 'resources');
-  const appSourceDir = path.join(resourcesDir, 'app');
-
-  fs.rmSync(appDir, { recursive: true, force: true });
-  fs.mkdirSync(appDir, { recursive: true });
-  execFileSync('unzip', ['-q', cachedZip, '-d', appDir]);
-  const electronExe = path.join(appDir, 'electron.exe');
-  const tokenGameExe = path.join(appDir, 'TokenGame.exe');
-  if (!fs.existsSync(electronExe)) {
-    throw new Error(`Electron template did not contain electron.exe: ${cachedZip}`);
-  }
-  fs.renameSync(electronExe, tokenGameExe);
-  copyAppSource(appSourceDir);
-  console.log(`Packaged: ${appDir}`);
-}
-
-const outDir = path.resolve(cwd, 'outputs', target);
-fs.rmSync(outDir, { recursive: true, force: true });
-fs.rmSync(tmpdir, { recursive: true, force: true });
-
-function ignore(filePath) {
-  const relativePath = path.relative(cwd, filePath);
-  if (!relativePath || relativePath.startsWith(`node_modules${path.sep}`)) {
-    return false;
-  }
-
-  const parts = relativePath.split(path.sep);
-  return ['.git', '.superpowers', 'docs', 'outputs', 'prisma', 'work'].includes(parts[0]);
-}
-
-async function main() {
-  console.log(`Packaging Token Game for ${platform}/${arch}`);
-
-  if (platform === 'darwin') {
-    packageLocalMacApp();
-    return;
-  }
-
-  if (platform === 'win32') {
-    packageLocalWindowsApp();
-    return;
-  }
-
-  const appPaths = await packager({
-    dir: cwd,
-    out: outDir,
-    overwrite: true,
-    tmpdir,
-    prune: false,
-    asar: false,
-    platform,
-    arch,
-    name: 'Token Game',
-    executableName: 'TokenGame',
-    electronVersion,
-    electronZipDir,
-    download: {
-      mirrorOptions: {
-        mirror: process.env.ELECTRON_MIRROR ?? 'https://npmmirror.com/mirrors/electron/'
-      }
-    },
-    ignore
-  });
-
-  console.log(`Packager returned ${appPaths.length} path(s).`);
-  for (const appPath of appPaths) {
-    const appSourceDir = path.join(appPath, 'resources', 'app');
-    const rewritten = rewriteAbsoluteWorkspaceSymlinks(appSourceDir);
-    if (rewritten > 0) {
-      console.log(`Rewrote ${rewritten} workspace symlink(s) inside ${appSourceDir}.`);
-    }
-    console.log(`Packaged: ${appPath}`);
-  }
-}
-
-await main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});

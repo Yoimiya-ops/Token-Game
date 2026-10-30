@@ -1,13 +1,16 @@
 const { contextBridge, ipcRenderer } = require('electron');
-
 contextBridge.exposeInMainWorld('tokenPet', {
-  getAsset: () => ipcRenderer.invoke('pet:get-asset'),
-  interact: () => ipcRenderer.send('pet:interact'),
-  onAssetChanged: (callback) => {
-    ipcRenderer.on('pet:asset-changed', (_, asset) => callback(asset));
-  },
-  onTokenRefreshed: (callback) => {
-    ipcRenderer.on('pet:token-refreshed', (_, result) => callback(result));
+  getState: () => ipcRenderer.invoke('companion:get-state'),
+  collect: observedTotal => ipcRenderer.invoke('companion:collect', observedTotal),
+  draw: request => ipcRenderer.invoke('companion:draw', request),
+  dismantle: request => ipcRenderer.invoke('companion:dismantle', request),
+  dismantleBatch: request => ipcRenderer.invoke('companion:dismantleBatch', request),
+  exchange: request => ipcRenderer.invoke('companion:exchange', request),
+  chooseDirectory: () => ipcRenderer.invoke('companion:choose-directory'),
+  onState: callback => {
+    const listener = (_, state) => callback(state);
+    ipcRenderer.on('companion:state', listener);
+    return () => ipcRenderer.removeListener('companion:state', listener);
   },
   openGame: () => ipcRenderer.send('pet:open-game'),
   showContextMenu: () => ipcRenderer.send('pet:show-context-menu'),

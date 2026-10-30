@@ -3,24 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Token Game Pet</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'" />
+    <title>聚宝盆桌宠</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main id="pet" class="pet" aria-label="Token Game desktop pet">
-      <div class="bubble" id="bubble">Token 消化中...</div>
-      <div class="cat" id="cat">
-        <div class="ear ear-left"></div>
-        <div class="ear ear-right"></div>
-        <div class="face">
-          <span class="eye eye-left"></span>
-          <span class="eye eye-right"></span>
-          <span class="nose"></span>
-          <span class="mouth"></span>
-        </div>
-        <div class="tail"></div>
+    <main id="pet" class="pet" role="button" tabindex="0" aria-label="收取聚宝盆中的 Token">
+      <div class="bubble" id="bubble" aria-live="polite"></div>
+      <div class="companion-scene" id="scene" data-pending="false">
+        <div class="basin-aura" aria-hidden="true"></div>
+        <img class="pet-image basin-image" id="pet-image" src="./assets/processed/jade-basin.webp" alt="青玉聚宝盆" draggable="false" />
+        <div class="energy-ripple" aria-hidden="true"></div>
+        <span class="energy-thread" aria-hidden="true"></span>
+        <span class="energy-thread" aria-hidden="true"></span>
+        <span class="energy-thread" aria-hidden="true"></span>
       </div>
-      <img class="pet-image" id="pet-image" alt="桌宠" draggable="false" />
+      <div class="pending-label" id="pending-label" aria-hidden="true"></div>
     </main>
     <script src="./pet.js"></script>
   </body>

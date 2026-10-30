@@ -1,29 +1,18 @@
 const path = require('node:path');
+let companion;
 
-let gameServer;
-
-async function startEmbeddedServer(app) {
-  process.env.TOKEN_GAME_DATA_DIR = path.join(app.getPath('userData'), 'data');
-
-  const serverEntry = path.join(app.getAppPath(), 'apps', 'server', 'dist', 'index.cjs');
-  const serverModule = require(serverEntry);
-  gameServer = await serverModule.startGameServer({
-    port: 3001,
-    host: '127.0.0.1',
-    staticRoot: path.join(app.getAppPath(), 'apps', 'web', 'dist')
+function startCompanion(app, onState) {
+  const { CodexCollector } = require(path.join(app.getAppPath(), 'apps', 'server', 'dist', 'collector.cjs'));
+  companion = new CodexCollector({
+    dataDir: process.env.TOKEN_GAME_DATA_DIR || path.join(app.getPath('userData'), 'data'),
+    onState
   });
-
-  return gameServer;
+  // The desktop runtime reads local logs directly. No HTTP listener or browser is needed.
+  void companion.start().catch(error => console.error('Codex collector:', error));
+  return companion;
 }
-
-async function stopEmbeddedServer() {
-  if (gameServer) {
-    await gameServer.close();
-    gameServer = undefined;
-  }
+function getCompanion() { return companion; }
+async function stopCompanion() {
+  if (companion) { await companion.close(); companion = undefined; }
 }
-
-module.exports = {
-  startEmbeddedServer,
-  stopEmbeddedServer
-};
+module.exports = { startCompanion, stopCompanion, getCompanion };

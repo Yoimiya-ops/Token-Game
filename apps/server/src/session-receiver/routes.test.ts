@@ -17,11 +17,26 @@ import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { createGameApp } from '../index';
+import Fastify from 'fastify';
+import { createSessionRoutes } from './routes';
 import { SessionDriver } from '../token-tracker/session-driver';
 import type { Provider } from '../token-tracker/providers/base';
 import type { FileCursor, RawEvent } from '../token-tracker/types';
 import { ensureLedger, writeLedger } from '../store';
+
+// Exercise the retained legacy module in isolation; the companion app no longer mounts it.
+async function createGameApp(options: {
+  sessionStorePath: string;
+  sessionDriver?: SessionDriver;
+  sessionDriverTickIntervalMs?: number;
+  enableSessionDriver?: boolean;
+  staticRoot?: string;
+}) {
+  const app = Fastify();
+  await createSessionRoutes(app, { storePath: options.sessionStorePath, sessionDriver: options.sessionDriver });
+  app.addHook('onClose', async () => { options.sessionDriver?.shutdown(); });
+  return app;
+}
 
 /** Mirror of the FakeProvider used in session-driver.test.ts so we
  *  don't have to pull in real provider parsing rules for a route test. */

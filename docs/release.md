@@ -1,107 +1,55 @@
-# 打包与发布文档
+# 构建与发布
 
-## 构建前检查
+首发验证目标为 Windows x64。使用本机安装的同平台 Electron，不跨平台猜测运行时。
 
-```bash
+## 构建
+
+需要 Node.js 22.18+、pnpm 10，建议 Node.js 24。
+
+```powershell
 corepack pnpm install
+corepack pnpm typecheck
 corepack pnpm test
 corepack pnpm test:desktop
 corepack pnpm test:scripts
-corepack pnpm typecheck
-```
-
-## macOS 打包
-
-当前机器平台：
-
-```bash
-corepack pnpm dist:current
-```
-
-明确打 macOS arm64：
-
-```bash
-corepack pnpm dist:mac
-```
-
-输出：
-
-```text
-outputs/current/Token Game-darwin-arm64/Token Game.app
-```
-
-或：
-
-```text
-outputs/mac/Token Game-darwin-arm64/Token Game.app
-```
-
-## Windows 打包
-
-```bash
 corepack pnpm dist:win
 ```
 
-输出：
+esbuild 将采集器及依赖打为 `apps/server/dist/collector.cjs`。React + Vite 构建收获窗口，资源路径必须为相对路径，由 Electron `loadFile` 加载。
+
+发行包仅包含 Electron、必要桌面模块、采集器、编译后的窗口界面、青玉聚宝盆与 15 张武器素材，以及图标许可证。不包含 Fastify 服务、旧猫素材、自定义角色模块、node_modules、日志或用户存档。
 
 ```text
-outputs/win/Token Game-win32-x64/TokenGame.exe
+outputs/win/TokenGame-win32-x64/TokenGame.exe
+outputs/win/TokenGame-win32-x64.zip
 ```
 
-如果需要 zip 分发：
+用户完整解压运行，无需 Node.js、pnpm、Python 或 TokenTracker。应用只读取用户正常安装使用的本机 Codex 日志。
 
-```bash
-cd outputs/win
-zip -qr -X TokenGame-win32-x64.zip "Token Game-win32-x64"
+## 原生窗口检查
+
+具备 Playwright 的开发环境运行：
+
+```powershell
+node scripts/companion-smoke.cjs
 ```
 
-Windows 用户需要完整解压 `Token Game-win32-x64` 目录后运行 `TokenGame.exe`。
+外部 Playwright 模块可设置 `PLAYWRIGHT_MODULE_PATH`。检查发行包设置 `TOKEN_GAME_EXECUTABLE` 为 EXE 路径；设置 `TOKEN_GAME_ISOLATED_RUNTIME=1` 可去除子进程 PATH 中 Node/pnpm 搜索路径。脚本使用隔离日志和存档，不修改真实 Codex 文件。
 
-## Release 附件建议
+覆盖两种本地窗口、零 HTTP 请求、透明像素、真实待机运动、空收取、单击收取、双击/右键仅开窗、拖动不误收、1000 抽保底、15 张武器素材、十连主按钮、K/M/B 数字、选择模式进入/退出、暗色卡片勾选、键盘选择、长按拖选/取消、快速跨卡不漏选、失去捕获不误触、三档品质快捷选择、取消与确认分解、不误删未选武器、定向兑换、默认/紧凑窗口无需滚动、减少动画、重启保存武器与补采、正常退出。截图和结果在 `outputs/verification`。
 
-发布到 GitHub Releases 时建议上传两个附件：
+五档武器素材已预处理入库。需要重新处理原始图集时运行 `node scripts/process-weapon-assets.mjs`；切图沿透明行间隙定位，不按理想等分截断剑尖。
 
-```text
-TokenGame-win32-x64.zip
-TokenGame-darwin-arm64.zip
-```
+受限自动化宿主可能无法启动 Chromium 沙箱子进程。脚本允许 `TOKEN_GAME_ELECTRON_ARGS` 作为一次性测试参数；发行代码仍启用 sandbox、contextIsolation，未写入禁用沙箱或 GPU 的参数。自动化通过不等于干净机器人工验收。
 
-用户下载后的启动方式见 [玩家启动与游玩指南](player-guide.md)。
+2026-10-29 武器 MVP 验证：源码原生流程通过；最终 ZIP 重新解压后，在移除 Node 搜索路径、150% 显示缩放的隔离子进程中通过全部原生流程，结果见 `outputs/verification/package-smoke.json`。本宿主测试临时使用 `--no-sandbox --disable-gpu`，不代表默认安全配置已在独立干净机器上验收。
 
-## macOS 上跨平台打 Windows 包的注意事项
+2026-10-30 周节奏与批量分解：162 项自动化测试通过（server 119、web 3、desktop 39、scripts 1），类型检查和构建通过。新增 500 万抽模拟验证含材料兑换的周产出。源码与最新 ZIP 解压后的原生流程均通过，后者移除 Node 搜索路径并使用 150% 缩放；覆盖 1000 抽、批量勾选/取消/确认、未选库存保护和重启恢复。仍使用上述宿主临时兼容参数；发行包未降低安全配置。最新截图与 package-smoke.json 已更新。
 
-`scripts/package-desktop.mjs` 会优先使用本机 Electron 缓存。如果 `corepack pnpm dist:win` 退出码为 0 但没有生成 `outputs/win`，可以手动使用缓存的 Windows Electron zip 组装：
+## 发布前人工检查
 
-```bash
-rm -rf outputs/win work/manual-win-package
-mkdir -p outputs/win work/manual-win-package
-unzip -q ~/Library/Caches/electron/*/electron-v37.10.3-win32-x64.zip -d work/manual-win-package
-mv work/manual-win-package/electron.exe work/manual-win-package/TokenGame.exe
-mkdir -p work/manual-win-package/resources/app
-rsync -a --exclude .git --exclude .superpowers --exclude docs --exclude outputs --exclude prisma --exclude work ./ work/manual-win-package/resources/app/
-mv work/manual-win-package "outputs/win/Token Game-win32-x64"
-cd outputs/win
-zip -qr -X TokenGame-win32-x64.zip "Token Game-win32-x64"
-```
+2026-10-30 交互优化验收：167 项测试通过（server 119、web 8、desktop 39、scripts 1），类型检查与构建通过。最新 ZIP 重新解压、隔离 Node 搜索路径并使用 150% 缩放后，完整原生流程通过；沿用宿主临时兼容参数，不更改发行安全配置。新增数字边界和拖选几何测试，截图 `weapon-forge.png` 为普通浏览，`weapon-batch-selection.png` 与 `receipt-compact-selection.png` 为选择模式。经济配置与存档结构不变。
 
-## 发布检查
+独立无开发环境 Windows 机器、真实托盘交互、物理多显示器、睡眠唤醒与长期试用仍待人工验收。macOS、代码签名和自动更新不计作本次已完成能力。
 
-发布前确认：
-
-- `outputs/.../resources/app/apps/web/dist/index.html` 存在。
-- `outputs/.../resources/app/apps/server/dist/index.cjs` 存在。
-- `outputs/.../resources/app/desktop/pet/assets/processed/default-cat.webp` 存在。
-- 桌宠可以打开。
-- 双击桌宠可以打开游戏窗口。
-- `GET http://127.0.0.1:3001/health` 返回 `{ "ok": true }`。
-
-## 不提交的文件
-
-以下内容不提交到 Git：
-
-- `outputs/`
-- `work/`
-- `apps/server/dist/`
-- `apps/web/dist/`
-- `apps/server/data/ledger.json`
-- `node_modules/`
+源码与发行包的唯一正式入口是 Electron，不分发浏览器体验地址。

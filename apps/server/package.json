@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/dev.ts",
-    "build": "tsup --config tsup.config.ts",
+    "build": "node ../../scripts/build-server.mjs",
     "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:init": "tsx src/db-init.ts",

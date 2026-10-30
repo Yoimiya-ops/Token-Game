@@ -1,89 +1,24 @@
 const { Menu, Tray, nativeImage } = require('electron');
-
+const path = require('node:path');
 let tray;
 
+function createTrayMenu(app, actions) {
+  return Menu.buildFromTemplate([
+    { label: '显示聚宝盆', click: actions.restorePet },
+    { label: '隐藏聚宝盆', click: actions.hidePet },
+    { label: '看看收获', click: actions.openGame },
+    { type: 'separator' },
+    { label: '退出', click: () => app.quit() }
+  ]);
+}
 function createTray(app, actions) {
-  const icon = nativeImage.createEmpty();
+  const icon = nativeImage.createFromPath(path.join(app.getAppPath(), 'desktop', 'pet', 'assets', 'processed', 'jade-basin-icon.png')).resize({ width: 24, height: 24 });
   tray = new Tray(icon);
-  tray.setToolTip('Token Game');
+  tray.setToolTip('聚宝盆');
   tray.setContextMenu(createTrayMenu(app, actions));
   tray.on('click', actions.restorePet);
   tray.on('double-click', actions.openGame);
   return tray;
 }
-
-function createTrayMenu(app, actions) {
-  return Menu.buildFromTemplate([
-    { label: '显示小猫', click: actions.restorePet },
-    { label: '打开游戏', click: actions.openGame },
-    { type: 'separator' },
-    {
-      label: '立刻入账',
-      click: () => {
-        void actions.refreshTokens();
-      }
-    },
-    { type: 'separator' },
-    {
-      label: '退出',
-      click: () => {
-        app.isQuitting = true;
-        app.quit();
-      }
-    }
-  ]);
-}
-
-function createPetContextMenu(app, actions) {
-  const activeAsset = actions.getActivePetAsset();
-  const petAssetItems = actions.listPetAssets().map((asset) => ({
-    label: asset.label,
-    type: 'radio',
-    checked: asset.id === activeAsset.id,
-    click: () => actions.setActivePetAsset(asset.id)
-  }));
-
-  return Menu.buildFromTemplate([
-    { label: '打开游戏', click: actions.openGame },
-    { label: '添加图片桌宠...', click: actions.importPetAsset },
-    {
-      label: '重命名当前桌宠...',
-      enabled: Boolean(activeAsset),
-      click: actions.renameActivePetAsset
-    },
-    {
-      label: '删除当前桌宠...',
-      enabled: activeAsset.id !== 'default-cat',
-      click: actions.deleteActivePetAsset
-    },
-    {
-      label: '切换桌宠',
-      submenu: petAssetItems
-    },
-    {
-      label: '置顶/取消置顶',
-      click: actions.toggleAlwaysOnTop
-    },
-    { label: '隐藏到托盘', click: actions.hidePet },
-    { type: 'separator' },
-    {
-      label: '刷新 token',
-      click: () => {
-        void actions.refreshTokens();
-      }
-    },
-    { type: 'separator' },
-    {
-      label: '退出',
-      click: () => {
-        app.isQuitting = true;
-        app.quit();
-      }
-    }
-  ]);
-}
-
-module.exports = {
-  createPetContextMenu,
-  createTray
-};
+function createPetContextMenu(app, actions) { return createTrayMenu(app, actions); }
+module.exports = { createPetContextMenu, createTray };

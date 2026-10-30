@@ -1,207 +1,46 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { test } from 'node:test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGameApp, resolveWebStaticRoot } from './index';
-import { updateLedger } from './store';
 
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..', '..', '..');
 
-test('resolves web static root from the repository root cwd', () => {
-  assert.equal(
-    resolveWebStaticRoot(repoRoot),
-    path.join(repoRoot, 'apps', 'web', 'dist')
-  );
+test('resolves the web build from repository and workspace directories', () => {
+  assert.equal(resolveWebStaticRoot(repoRoot), path.join(repoRoot, 'apps', 'web', 'dist'));
+  assert.equal(resolveWebStaticRoot(path.join(repoRoot, 'apps', 'server')), path.join(repoRoot, 'apps', 'web', 'dist'));
 });
-
-test('resolves web static root from the server workspace cwd', () => {
-  assert.equal(
-    resolveWebStaticRoot(path.join(repoRoot, 'apps', 'server')),
-    path.join(repoRoot, 'apps', 'web', 'dist')
-  );
-});
-
-test('serves the built web app from the root route', async () => {
-  const app = await createGameApp({
-    tickIntervalMs: 60_000,
-    tokenTrackerQueuePath: '/tmp/token-game-missing-queue.jsonl',
-    runExternalTrackerSync: false
-  });
-
-  const response = await app.inject({ method: 'GET', url: '/' });
-
-  assert.equal(response.statusCode, 200);
-  assert.match(response.headers['content-type'] as string, /text\/html/);
-  assert.match(response.body, /<div id="root"><\/div>/);
-
-  await app.close();
-});
-
-test('serves the built web app from an explicit static root', async () => {
-  const staticRoot = mkdtempSync(path.join(tmpdir(), 'token-game-static-'));
-  mkdirSync(path.join(staticRoot, 'assets'), { recursive: true });
-  writeFileSync(path.join(staticRoot, 'index.html'), '<!doctype html><div id="explicit-root"></div>');
-  const app = await createGameApp({
-    staticRoot,
-    tickIntervalMs: 60_000,
-    tokenTrackerQueuePath: '/tmp/token-game-missing-queue.jsonl',
-    runExternalTrackerSync: false
-  });
-
-  try {
-    const response = await app.inject({ method: 'GET', url: '/' });
-
-    assert.equal(response.statusCode, 200);
-    assert.match(response.body, /<div id="explicit-root"><\/div>/);
-  } finally {
-    await app.close();
-    rmSync(staticRoot, { recursive: true, force: true });
+test('serves the receipt and provides only the companion API, with safe snapshot acknowledgement', async t => {
+  const root = mkdtempSync(path.join(tmpdir(), 'companion-api-'));
+  mkdirSync(path.join(root, 'sessions'));
+  writeFileSync(path.join(root, 'index.html'), '<div id="root"></div>');
+  let now = new Date('2026-10-29T01:00:00Z');
+  const app = await createGameApp({ staticRoot: root, dataDir: path.join(root, 'data'), codexHome: root, startCollector: false, now: () => now });
+  t.after(async () => { await app.close(); rmSync(root, { recursive: true, force: true }); });
+  const page = await app.inject('/');
+  assert.equal(page.statusCode, 200);
+  assert.match(page.headers['content-type']!, /html/);
+  assert.match(page.body, /id="root"/);
+  assert.equal((await app.inject('/api/state')).json().totalTokens, 0);
+  now = new Date('2026-10-29T02:00:00Z');
+  const file = path.join(root, 'sessions', 'rollout-api.jsonl');
+  writeFileSync(file, JSON.stringify({ type: 'session_meta', payload: { id: 'api-session' } }) + '\n');
+  appendFileSync(file, JSON.stringify({ type: 'event_msg', timestamp: '2026-10-29T01:01:00Z', payload: { type: 'token_count', info: { total_token_usage: { total_tokens: 123 } } } }) + '\n');
+  await app.companion.scan();
+  const collect = await app.inject({ method: 'POST', url: '/api/collect', payload: { observedTotal: 123 } });
+  assert.equal(collect.statusCode, 200);
+  assert.equal(collect.json().collectedTokens, 123);
+  assert.equal(collect.json().state.pendingTokens, 0);
+  assert.equal((await app.inject({ method: 'POST', url: '/api/collect', payload: { observedTotal: 123 } })).json().collectedTokens, 0);
+  for (const observedTotal of [124, -1, '123', null]) {
+    assert.equal((await app.inject({ method: 'POST', url: '/api/collect', payload: { observedTotal } })).statusCode, 400);
   }
-});
-
-test('returns cultivation state and supports practice action errors', async () => {
-  const dataDir = mkdtempSync(path.join(tmpdir(), 'token-game-cultivation-api-'));
-  process.env.TOKEN_GAME_DATA_DIR = dataDir;
-  const app = await createGameApp({
-    tickIntervalMs: 60_000,
-    tokenTrackerQueuePath: '/tmp/token-game-missing-queue.jsonl',
-    runExternalTrackerSync: false
-  });
-
-  try {
-    const stateResponse = await app.inject({ method: 'GET', url: '/api/state' });
-    const state = JSON.parse(stateResponse.body);
-
-    assert.equal(stateResponse.statusCode, 200);
-    assert.equal(state.player.realm, '炼气一层');
-    assert.equal(typeof state.player.qi, 'number');
-    assert.equal(state.tracker.queuePath, '/tmp/token-game-missing-queue.jsonl');
-    assert.equal(state.tracker.queueUpdatedAt, null);
-    assert.equal(state.tracker.lastError, null);
-
-    const practiceResponse = await app.inject({ method: 'POST', url: '/api/actions/practice' });
-    assert.equal(practiceResponse.statusCode, 400);
-    assert.match(practiceResponse.body, /灵气不足/);
-  } finally {
-    await app.close();
-    delete process.env.TOKEN_GAME_DATA_DIR;
-    rmSync(dataDir, { recursive: true, force: true });
+  for (const url of ['/api/actions/farm', '/api/actions/treasure-basin/condense', '/v1/sessions']) {
+    assert.equal((await app.inject({ method: 'POST', url, payload: {} })).statusCode, 404);
   }
-});
-
-test('returns homestead state and runs cultivation world actions', async () => {
-  const dataDir = mkdtempSync(path.join(tmpdir(), 'token-game-homestead-api-'));
-  process.env.TOKEN_GAME_DATA_DIR = dataDir;
-  const app = await createGameApp({
-    tickIntervalMs: 60_000,
-    tokenTrackerQueuePath: '/tmp/token-game-missing-queue.jsonl',
-    runExternalTrackerSync: false
-  });
-
-  try {
-    const stateResponse = await app.inject({ method: 'GET', url: '/api/state' });
-    const state = JSON.parse(stateResponse.body);
-
-    assert.equal(stateResponse.statusCode, 200);
-    assert.equal(state.player.kindling, 0);
-    assert.equal(state.homestead.spiritBeast.status, 'idle');
-    assert.equal(Array.isArray(state.homestead.logs), true);
-
-    const divinationResponse = await app.inject({ method: 'POST', url: '/api/actions/divination' });
-    const divinationState = JSON.parse(divinationResponse.body);
-
-    assert.equal(divinationResponse.statusCode, 200);
-    assert.equal(typeof divinationState.homestead.omen.fortune, 'string');
-    assert.match(divinationState.homestead.logs[0].title, /今日卦象/);
-
-    updateLedger((ledger) => {
-      ledger.player.kindling = 1;
-      ledger.player.spiritStone = 3;
-    });
-
-    const treasureResponse = await app.inject({
-      method: 'POST',
-      url: '/api/actions/treasure-basin/condense'
-    });
-    const treasureState = JSON.parse(treasureResponse.body);
-
-    assert.equal(treasureResponse.statusCode, 200);
-    assert.equal(treasureState.player.kindling, 0);
-    assert.equal(treasureState.homestead.inventory.length, 1);
-
-    const dispatchResponse = await app.inject({ method: 'POST', url: '/api/actions/beast/dispatch' });
-    const dispatchState = JSON.parse(dispatchResponse.body);
-
-    assert.equal(dispatchResponse.statusCode, 200);
-    assert.equal(dispatchState.homestead.spiritBeast.status, 'traveling');
-
-    updateLedger((ledger) => {
-      ledger.homestead.spiritBeast.returnsAt = '2026-06-22T02:30:00.000Z';
-    });
-
-    const tickResponse = await app.inject({
-      method: 'POST',
-      url: '/api/actions/tick',
-      payload: { now: '2026-06-22T02:31:00.000Z' }
-    });
-    const tickState = JSON.parse(tickResponse.body);
-
-    assert.equal(tickResponse.statusCode, 200);
-    assert.equal(tickState.homestead.spiritBeast.status, 'idle');
-    assert.match(tickState.homestead.logs[0].title, /灵兽归山/);
-  } finally {
-    await app.close();
-    delete process.env.TOKEN_GAME_DATA_DIR;
-    rmSync(dataDir, { recursive: true, force: true });
-  }
-});
-
-test('backfills kindling once for ledgers that predate kindling rewards', async () => {
-  const dataDir = mkdtempSync(path.join(tmpdir(), 'token-game-kindling-backfill-api-'));
-  process.env.TOKEN_GAME_DATA_DIR = dataDir;
-  const app = await createGameApp({
-    tickIntervalMs: 60_000,
-    tokenTrackerQueuePath: '/tmp/token-game-missing-queue.jsonl',
-    runExternalTrackerSync: false
-  });
-
-  try {
-    updateLedger((ledger) => {
-      ledger.player.kindling = 0;
-      ledger.events = [
-        {
-          id: 'tokentracker:legacy:input',
-          source: 'tokentracker',
-          model: 'gpt-5.5',
-          kind: 'input',
-          tokenCount: 1000,
-          occurredAt: '2026-06-19T11:30:00.000Z',
-          qiGained: 10
-        },
-        {
-          id: 'tokentracker:legacy:output',
-          source: 'tokentracker',
-          model: 'gpt-5.5',
-          kind: 'output',
-          tokenCount: 600,
-          occurredAt: '2026-06-19T11:30:00.000Z',
-          qiGained: 6
-        }
-      ];
-    });
-
-    const firstResponse = await app.inject({ method: 'GET', url: '/api/state' });
-    const firstState = JSON.parse(firstResponse.body);
-    assert.equal(firstState.player.kindling, 3);
-
-    const secondResponse = await app.inject({ method: 'GET', url: '/api/state' });
-    const secondState = JSON.parse(secondResponse.body);
-    assert.equal(secondState.player.kindling, 3);
-  } finally {
-    await app.close();
-    delete process.env.TOKEN_GAME_DATA_DIR;
-    rmSync(dataDir, { recursive: true, force: true });
-  }
+  const hostile = await app.inject({ method: 'POST', url: '/api/collect', headers: { origin: 'https://unrelated.example' }, payload: { observedTotal: 123 } });
+  assert.equal(hostile.statusCode, 403);
+  assert.equal((await app.inject({ method: 'POST', url: '/api/directory', payload: { directory: 'missing-relative-path' } })).statusCode, 400);
 });

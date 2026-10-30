@@ -1,114 +1,75 @@
-# Token Game
+# 聚宝盆 · Token Game
 
-Token Game 是一个本地运行的 Electron 桌面宠物修仙游戏。应用启动后会先显示一只可拖动的桌宠；单击桌宠触发互动，双击桌宠进入游戏界面。游戏会读取本机 TokenTracker 的真实 token 用量，并把新增 token 包装成“天机入账”和“灵气”。
+一个陪你使用 Codex 的本地修仙聚宝盆。桌宠就是聚宝盆本身，没有猫或其他示例角色。新增 Token 自动汇聚，点开看看收获，收下时灵气入藏。
 
-## 功能概览
+玩家只有两个界面：可拖动的透明聚宝盆，以及收获与武器窗口。左键单击直接收取 Token，空盆也有动作和 +0 提示；右键或左键双击打开窗口。托盘负责隐藏、显示和退出。
 
-- 桌面小宠物常驻桌面，支持拖动、置顶、隐藏到托盘。
-- 单击桌宠互动，双击桌宠打开游戏。
-- 右键桌宠可以切换、导入、重命名、删除桌宠形象。
-- 支持导入 png、jpg、jpeg、webp、gif、apng 图片作为自定义桌宠。
-- 内置资源可以重命名；非默认内置资源可以删除，删除后会从用户资源列表隐藏。
-- 默认桌宠是内置白猫 webp 动图。
-- 游戏界面使用 React 展示修炼、种田、打坐、炼丹、洞府资源和最近天机记录。
-- 后端使用 Fastify 内嵌在 Electron 中运行，默认监听 `127.0.0.1:3001`。
-- Token 用量通过 `tokentracker-cli` 读取 `~/.tokentracker/tracker/queue.jsonl`。
+## 下载包启动
 
-## 文档
+首发为 Windows x64 便携包。完整解压 `TokenGame-win32-x64.zip`，运行文件夹里的 `TokenGame.exe`。保留同目录全部文件。
 
-- [玩家启动与游玩指南](docs/player-guide.md)
-- [需求文档](docs/requirements.md)
-- [接口文档](docs/api.md)
-- [开发文档](docs/development.md)
-- [桌面端启动文档](docs/desktop-startup.md)
-- [打包与发布文档](docs/release.md)
-- [技术栈](docs/tech-stack.md)
-- [开发流程](docs/workflow.md)
+包内携带 Electron 运行环境、采集器、界面和素材，无需 Node.js、pnpm、Python 或 TokenTracker。Codex 由用户正常安装和使用。应用启动即自动采集本机 Codex 的用量日志，只读用量，不读取账号密钥，也不保存对话正文。
 
-## 环境要求
+首次启动从当前用量建立基线。之后新增 Token 自动保存，退出期间的记录在重开时补采，只要日志还在。收取后进入可用余额，忘记收取不会丢失待收量。消费只扣可用余额，不扣历史累计。
 
-如果只是下载 GitHub Release 里的压缩包游玩，不需要安装 Node.js 或 pnpm。
+## 两个玩法
 
-从源码启动或参与开发时需要：
+- 武器抽取：10 万 Token 一抽，100 万十连；五档 15 把武器。基础概率依次为 75% / 20% / 4.5% / 0.4% / 0.1%，连续 20 抽保底上品及以上、1000 抽保底仙品。
+- 分解兑换：点击「批量分解」进入选择模式，卡片选中后变暗打勾，支持单击、长按拖选、全选和凡/良/上品快捷选择；一次确认分解所选种类的全部数量。玄铁直接兑换指定武器，仙品需 6000 玄铁；不自动分解，兑换不改变保底。
 
-- Node.js 20 或更高版本，推荐 Node.js 22 LTS。
-- pnpm 10，仓库已在 `package.json` 声明 `packageManager`。
-- Git。
-- macOS 或 Windows。
-- 可选：TokenTracker。未安装或暂无 token 记录时，游戏仍能启动，但不会产生新的真实 token 收益。
+祈器十次为主按钮，一次为次按钮；Token 金额使用英文 K / M / B，例如 100K、1M、7.5M，悬停可查看完整值。数值规则不因显示缩写改变。
 
-## 拉代码后启动
+默认窗口为 1000 × 760 DIP，并按屏幕工作区缩小；主要内容不需要拖动窗口或滚动页面查看。每天 750 万 Token、保留仙品并分解其他武器兑换仙品时，长期平均约 7 天一把仙品。详细数值、假设与波动见 [周节奏与批量分解](docs/design/2026-10-30-weekly-weapons.md)。
 
-```bash
-git clone https://github.com/Yoimiya-ops/Token-Game.git
-cd Token-Game
-git checkout dev
-corepack enable
+默认使用 `CODEX_HOME`，未设置时使用用户目录下的 `.codex`。没有找到目录时，在收获页底部选择文件夹。仅支持当前已验证的本机日志格式；远端、WSL 和云端会话不自动包含在内。
+
+## 源码启动
+
+需要 Node.js 22.18 或更高版本，建议 Node.js 24；使用 pnpm 10 安装依赖。
+
+```powershell
 corepack pnpm install
 corepack pnpm start
 ```
 
-`pnpm start` 会先构建 web/server，再启动 Electron 桌宠。macOS 和 Windows 都使用同一条命令。
+`start` 先构建，再启动 Electron。`dev` 也使用桌面入口。两个窗口直接加载本地文件，通过受限 IPC 与主进程通信，不打开浏览器、不监听 HTTP 端口。
 
-## 下载包启动
+React + Vite 是 Electron 收获窗口的界面技术，不是浏览器产品。`apps/web` 是沿用的源码目录名。历史 Fastify 接口仅保留供开发诊断和回归测试，发行包不包含该服务。
 
-如果 Release 中已经上传了安装包：
+## 检查与打包
 
-- Windows 下载 `TokenGame-win32-x64.zip`，完整解压后双击 `Token Game-win32-x64/TokenGame.exe`。
-- macOS 下载 `TokenGame-darwin-arm64.zip`，解压后双击 `Token Game.app`。如果系统拦截未签名应用，右键选择“打开”。
-
-完整玩法说明见 [玩家启动与游玩指南](docs/player-guide.md)。
-
-## 开发模式
-
-需要前端热更新时，可以开两个终端：
-
-```bash
-corepack pnpm dev
+```powershell
+corepack pnpm typecheck
+corepack pnpm test
+corepack pnpm test:desktop
+corepack pnpm test:scripts
+corepack pnpm dist:win
 ```
 
-另一个终端启动桌面端：
-
-```bash
-corepack pnpm desktop
-```
-
-开发模式下，游戏窗口会优先连接 Vite 的 `http://localhost:3000`；打包/生产模式下会加载内嵌 Fastify 服务的 `http://127.0.0.1:3001/`。
-
-## 常用命令
-
-```bash
-corepack pnpm start          # 构建并启动桌面应用
-corepack pnpm dev            # 同时启动 server 和 web 开发服务
-corepack pnpm desktop        # 仅启动 Electron
-corepack pnpm build          # 构建 server 和 web
-corepack pnpm test           # 运行 server/shared 相关测试
-corepack pnpm test:desktop   # 运行桌面端测试
-corepack pnpm test:scripts   # 运行脚本测试
-corepack pnpm typecheck      # TypeScript 类型检查
-corepack pnpm dist:current   # 打当前系统的桌面包
-corepack pnpm dist:mac       # 打 macOS arm64 包
-corepack pnpm dist:win       # 打 Windows x64 包
-```
-
-## 当前打包产物
-
-打包产物不会提交到 Git。需要本地生成时运行：
-
-```bash
-corepack pnpm dist:current
-```
-
-macOS 应用会输出到：
+Windows 产物：
 
 ```text
-outputs/current/Token Game-darwin-arm64/Token Game.app
+outputs/win/TokenGame-win32-x64/TokenGame.exe
+outputs/win/TokenGame-win32-x64.zip
 ```
 
-Windows 应用会输出到：
+打包使用已安装的同平台 Electron，不依赖 macOS 缓存目录、unzip 或在线下载运行时。压缩使用 Windows 自带的 .NET ZipFile。macOS 不在本轮验收范围。
 
-```text
-outputs/win/Token Game-win32-x64/TokenGame.exe
-```
+## 存档与旧版本
 
-更详细的启动与打包说明见 [桌面端启动文档](docs/desktop-startup.md) 和 [打包与发布文档](docs/release.md)。
+桌面存档在 Electron 用户数据目录的 `data/companion.json`，一般为 `%APPDATA%/token-game/data`。独立开发服务默认使用 `~/.token-game/data`。
+
+采集位置、累计、已收取进度、消费、武器、材料与保底一起保存，并保留上一份 `.bak`。损坏时恢复备份；两个版本都无法解析则报错，保留原文件。
+
+v1 聚宝盆存档升级到 v2 前保存 `.pre-weapons.bak`。此前已收取的 Token 自动成为可用余额，待收量保持不变；重启不会重复发放。
+
+已有 `ledger.json` 会先备份，旧总量在收获页标记为“旧版累计”，不重新触发奖励。旧资源保留在原档及备份中。当前入口不再运行修仙、建筑或旧会话入账链路。
+
+## 文档
+
+- [玩家指南](docs/player-guide.md)
+- [接口](docs/api.md)
+- [构建与发布](docs/release.md)
+- [当前武器 MVP 范围与数值](docs/design/2026-10-29-weapons-mvp.md)
+
+仓库保留的旧修仙、其他 Provider 和 session 模块属于历史实现，当前桌宠不调用它们。
